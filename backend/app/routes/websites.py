@@ -1,0 +1,61 @@
+from flask import Blueprint, jsonify, request
+from app.routes.auth import token_required
+
+
+websites_bp = Blueprint('websites', __name__, url_prefix='/websites')
+
+
+@websites_bp.route('/add', methods=['POST'])
+@token_required
+def add_website(current_user):
+    from app.models import Website
+    from app import db
+
+    data = request.get_json()
+
+    url = data.get('url')
+    name = data.get('name')
+    frequency = data.get('frequency', 5)
+
+    #Validate Required Fields
+    if not url or not name:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    #create new Website object
+    new_website = Website(user_id=current_user.id, url=url, name=name, frequency=frequency)
+
+    #Add website to database session
+    db.session.add(new_website)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Website added successfully!",
+        "website": {
+            "id": new_website.id,
+            "user_id": new_website.user_id,
+            "url": new_website.url,
+            "name": new_website.name,
+            "frequency": new_website.frequency
+        }
+    }), 201
+
+@websites_bp.route('/', methods=['GET'])
+@token_required
+def get_websites(current_user):
+    from app.models import Website
+
+    #Query database for website belonging to user
+    websites = Website.query.filter_by(user_id=current_user.id).all()
+
+    #Serialize data into dictionary
+    websites_data = [
+        {
+            "id": website.id,
+            "url": website.url,
+            "name": website.name,
+            "frequency": website.frequency
+        }
+        for website in websites
+    ]
+
+    return jsonify(websites_data), 200
