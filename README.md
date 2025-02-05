@@ -21,6 +21,7 @@ This is a simple **Website Monitoring Alert System** that allows users to track 
 - SQLite (Database for storing websites & status logs)
 - Flask-CORS (For handling cross-origin requests)
 - Requests (For checking website status)
+- APScheduler (For periodic website monitoring)
 
 ## Installation
 ### **1. Clone the Repository**
