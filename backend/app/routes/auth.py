@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import Blueprint, jsonify, request
-from app.models import User
+from app.models import User, Website, Metric, Alert
 from app import db
 import jwt
 from datetime import datetime, timedelta
@@ -172,3 +172,25 @@ def change_password(current_user):
     db.session.commit()
 
     return jsonify({"message": "Password updated successfully!"}), 200
+
+#Delete User Account
+@auth_bp.route('/delete', methods=['DELETE'])
+@token_required
+def delete_user(current_user):
+    #Ensure users exists
+    user = User.query.get(current_user.id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    #Delete all related data
+    websites = Website.query.filter_by(user_id=user.id).all()
+    for website in websites:
+        Metric.query.filter_by(website_id=website.id).delete()
+        Alert.query.filter_by(website_id=website.id).delete()
+        db.session.delete(website)
+        
+    #Delete user account
+    db.session.delete(user)
+    db.session.commit()
+    
+    return jsonify({"message": "User account deleted successfully!"}), 200

@@ -59,3 +59,78 @@ def get_websites(current_user):
     ]
 
     return jsonify(websites_data), 200
+
+#Update Website
+@websites_bp.route('/update', methods=['PUT'])
+@token_required
+def update_website(current_user):
+    from app.models import Website
+    from app import db
+
+    #Parse incoming JSON from request body
+    data = request.get_json()
+
+    #Extract fields from request
+    website_id = data.get("website_id")
+    url = data.get("url")
+    name = data.get("name")
+    frequency = data.get("frequency")
+
+    #Validate website_id is provided
+    if not website_id:
+        return jsonify({"error": "Website ID is required"}), 400
+
+    #Query db to find matching website
+    website = Website.query.filter_by(id=website_id, user_id=current_user.id).first()
+
+    #Update website attributes if they are provided
+    if url:
+        website.url = url
+    if name:
+        website.name = name
+    if frequency:
+        website.frequency = frequency
+
+    #Commit changes to db
+    db.session.commit()
+
+    #Return message with updated website details
+    return jsonify({
+        "message": "Website updated successfully!",
+        "website": {
+            "id": website.id,
+            "user_id": website.user_id,
+            "url": website.url,
+            "name": website.name,
+            "frequency": website.frequency
+        }
+    }), 200
+
+#Delete websites
+@websites_bp.route('/delete', methods=['DELETE'])
+@token_required
+def delete_website(current_user):
+    from app.models import Website, Metric, Alert
+    from app import db
+
+    #Parse data from request
+    data = request.get_json()
+    website_id = data.get("website_id")
+
+    #Ensure website_id is provided
+    if not website_id:
+        return jsonify({"error": "Website ID is required"}), 400
+
+    #Query db for website
+    website = Website.query.filter_by(id=website_id, user_id=current_user.id).first()
+
+    #If website doesn't exist or user unauthorized, return error
+    if not website:
+        return jsonify({"error": "Website not found or unauthorized"}), 404
+
+    #Remove website from db
+    db.session.delete(website)
+    db.session.commit()
+
+    #Return success message
+    return jsonify({"message": "Website deleted successfully!"}), 200
