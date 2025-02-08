@@ -40,6 +40,12 @@ export default function WebsiteMonitorUI() {
     }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      addWebsite();
+    }
+  };
+
   const removeWebsite = (targetUrl) => {
     setWebsites(websites.filter((site) => site.url !== targetUrl));
   };
@@ -52,7 +58,7 @@ export default function WebsiteMonitorUI() {
         animate={{ x: 0, opacity: 1 }} 
         className="w-64 bg-gray-900 text-white p-6 shadow-lg"
       >
-        <h1 className="text-3x1 font-bold text-center text-white">Watchly</h1>
+        <h1 className="text-3xl font-bold text-center text-white">Watchly</h1>
         <h2 className="text-2xl font-bold">Dashboard</h2>
         <ul className="mt-6 space-y-4">
           <li className="hover:bg-gray-700 p-2 rounded cursor-pointer">Home</li>
@@ -92,6 +98,7 @@ export default function WebsiteMonitorUI() {
                 placeholder="Enter website URL"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
+                onKeyPress={handleKeyPress} // Add the event handler here
                 className="w-full p-2 border rounded-lg"
               />
               <Button onClick={addWebsite} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
