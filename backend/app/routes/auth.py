@@ -99,7 +99,7 @@ def token_required(f):
                 #Decode token
                 data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
                 #Fetch user from database
-                current_user = User.query.get(data["user_id"])
+                current_user = db.session.get(User, data["user_id"])
                 if not current_user:
                     return jsonify({"error": "Invalid token!"}), 401
             except jwt.ExpiredSignatureError:
@@ -178,19 +178,19 @@ def change_password(current_user):
 @token_required
 def delete_user(current_user):
     #Ensure users exists
-    user = User.query.get(current_user.id)
+    user = db.session.get(User, current_user.id)
     if not user:
         return jsonify({"error": "User not found"}), 404
-    
+
     #Delete all related data
     websites = Website.query.filter_by(user_id=user.id).all()
     for website in websites:
         Metric.query.filter_by(website_id=website.id).delete()
         Alert.query.filter_by(website_id=website.id).delete()
         db.session.delete(website)
-        
+
     #Delete user account
     db.session.delete(user)
     db.session.commit()
-    
+
     return jsonify({"message": "User account deleted successfully!"}), 200

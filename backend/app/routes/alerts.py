@@ -101,11 +101,11 @@ def update_alert(current_user, alert_id):
 
     #Get the new status from the request JSON
     data = request.get_json()
-    
+
     #Update status if provided
     if "status" in data:
         alert.status = data["status"]
-    
+
     #update alert_type if provided
     if "alert_type" in data:
         alert.alert_type = data["alert_type"]
@@ -132,13 +132,13 @@ def resolve_alert(current_user, alert_id):
     from app import db
 
     #Find alert by ID
-    alert = Alert.query.get(alert_id)
+    alert = db.session.get(Alert, alert_id)
 
     if not alert:
         return jsonify({"error": "Alert not found"}), 404
 
     #Ensure user owns website associated to alert
-    website = Website.query.get(alert.website_id)
+    website = db.session.get(Website, alert.website_id)
     if not website or website.user_id != current_user.id:
         return jsonify({"error": "Unauthorized to resolve this alert"}), 403
 
@@ -156,3 +156,41 @@ def resolve_alert(current_user, alert_id):
             "timestamp": alert.timestamp.isoformat(),
         }
     }), 200
+
+#Get Alerts History
+@alerts_bp.route('/history', methods=['GET'])
+@token_required
+def get_alerts_history(current_user):
+    from app.models import Alert, Website
+    website_id = request.args.get("website_id", type=int)
+    status = request.args.get("status")
+
+    #Fetch user websites
+    user_websites = Website.query.filter_by(user_id=current_user.id).all()
+    user_website_ids = {website.id for website in user_websites}
+
+    #Validate website_id belongs to user
+    if website_id and website_id not in user_website_ids:
+        return jsonify({"error": "Website not found or unathorized"}), 404
+
+    #Query alerts
+    alerts_query = Alert.query.filter(Alert.website_id.in_(user_website_ids))
+    if website_id:
+        alerts_query = alerts_query.filter_by(website_id=website_id)
+    if status:
+        alerts_query = alerts_query.filter_by(status=status)
+
+    alerts = alerts_query.order_by(Alert.timestamp.desc()).all()
+
+    #Serialize response
+    alerts_data = [
+        {
+            "id": alert.id,
+            "website_id": alert.website_id,
+            "alert_type": alert.alert_type,
+            "status": alert.status,
+            "timestamp": alert.timestamp.isoformat(),
+        }
+        for alert in alerts
+    ]
+    return jsonify(alerts_data), 200

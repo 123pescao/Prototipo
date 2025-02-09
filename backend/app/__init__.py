@@ -1,7 +1,5 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
-
-
 
 #Initialize database
 db = SQLAlchemy()
@@ -22,4 +20,10 @@ def create_app():
     app.register_blueprint(websites_bp) #Register websites bp
     app.register_blueprint(metrics_bp) #Register metrics bp
     app.register_blueprint(auth_bp) #Register auth bp
+
+    #Moved route here so its available for tests
+    @app.route('/status', methods=['GET'])
+    def status():
+        return jsonify({"message": "Server is running"}), 200
+
     return app
