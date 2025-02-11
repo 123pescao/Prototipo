@@ -1,16 +1,17 @@
 import requests
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import current_app
+from app import create_app
 from app import db
 from app.models import Website, Metric, Alert
 from datetime import datetime
 
+app = create_app()
 scheduler = BackgroundScheduler()
 
 # Function to check Website status
 def check_websites():
-    with current_app.app_context():
+    with app.app_context():
         websites = Website.query.all()
         for website in websites:
             try:
@@ -50,7 +51,7 @@ def check_websites():
 
 # Function to check alert conditions
 def check_for_alert(website_id, alert_type):
-    with current_app.app_context():
+    with app.app_context():
         # Check for existing unresolved alert of the same type
         existing_alert = Alert.query.filter_by(
             website_id=website_id, alert_type=alert_type, status="unresolved"
@@ -79,3 +80,6 @@ def start_monitoring():
 
     # Ensure APScheduler stops when app exits
     atexit.register(lambda: scheduler.shutdown())
+
+if __name__ == "__main__":
+    start_monitoring()

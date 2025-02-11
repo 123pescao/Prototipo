@@ -10,4 +10,9 @@ PyJWT
 apscheduler
 flask_sqlalchemy
 requests
-flask-restex
+flask-restx
+flask-cors    # (Needed for cross-origin requests, important for frontend-backend)
+flask-migrate # (For handling database migrations)
+flask-jwt-extended # (Better JWT handling)
+python-dotenv # (For managing environment variables)
+gunicorn      # (WSGI server for production)
