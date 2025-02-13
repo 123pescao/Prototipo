@@ -1,16 +1,16 @@
-# Use official Python image (slim variant for smaller size)
+# Use official Python image
 FROM python:3.11-slim
 
-# Set the working directory inside the container
+# Set working directory inside container
 WORKDIR /app
 
-# Copy only requirements first (helps with Docker caching)
+# Copy only requirements first to help Docker caching
 COPY requirements.txt ./
 
-# Install dependencies (reduce image size & improve performance)
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the backend code
+# Copy rest of backend code
 COPY . .
 
 # Expose Flask default port
