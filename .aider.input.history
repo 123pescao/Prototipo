@@ -1,0 +1,48 @@
+
+# 2025-02-04 21:53:03.080753
++Y
+
+# 2025-02-04 21:53:57.620664
++N
+
+# 2025-02-04 21:56:17.477966
++Y
+
+# 2025-02-04 21:56:52.621795
++N
+
+# 2025-02-04 22:42:00.787772
++make the frontend first file with react
+
+# 2025-02-04 22:42:34.871482
++model
+
+# 2025-02-04 22:44:27.296733
++update
+
+# 2025-02-04 22:44:46.516171
++frontend
+
+# 2025-02-04 22:57:26.090468
++Y
+
+# 2025-02-04 23:04:05.203536
++> Create Flask routes for user registration and login using JWT authentication.
++> Create a model called "Monitor" with fields: id (primary key), url (string), status (boolean), response_time (float), last_checked (datetime).
++> Create a route to send email alerts if a monitored website goes down or if response time exceeds a threshold.
++> Create a dashboard route that shows a list of monitored websites with their current status and response time.
++> Set up an SQLite database and initialize models for Users, Monitors, and Alerts.
++> Create API routes for adding a new monitored website, removing a website, and fetching monitoring data.
++> Generate a Dockerfile and docker-compose.yml for the app, including the Flask server and SQLite database.
++> Add centralized error handling and logging to capture issues like failed monitoring checks or missing routes.
++
+
+# 2025-02-04 23:06:36.801318
++n
+
+# 2025-02-04 23:16:57.253197
++> Create a basic React project with Vite and Tailwind CSS.
++
+
+# 2025-02-04 23:29:15.028958
++n
