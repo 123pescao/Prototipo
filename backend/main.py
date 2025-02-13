@@ -1,9 +1,12 @@
 #Entry point for server
+from flask_cors import CORS
 from app import create_app, db
 from app.models import User, Website, Metric, Alert
 from app.monitor import start_monitoring
 
 app = create_app()
+CORS(app)
+
 
 if __name__== '__main__':
     with app.app_context():
