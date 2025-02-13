@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Loader2, Trash2, Sun, Moon } from "lucide-react";
 import { motion } from "framer-motion";
+import WebsiteStatusChart from './WebsiteStatusChart'; // Import the chart
 
 export default function WebsiteMonitorUI() {
   const [websites, setWebsites] = useState([]);
@@ -12,6 +13,9 @@ export default function WebsiteMonitorUI() {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
+
+  const [selectedWebsite, setSelectedWebsite] = useState(null); // Track the selected website
+  const [loadingChart, setLoadingChart] = useState(false); // Track chart loading state
 
   // Toggle dark mode
   useEffect(() => {
@@ -65,6 +69,11 @@ export default function WebsiteMonitorUI() {
     setWebsites(websites.filter((site) => site.url !== targetUrl));
   };
 
+  const handleWebsiteClick = (website) => {
+    setSelectedWebsite(website);
+    setLoadingChart(true); // Set loading state to true when a website is selected
+  };
+
   return (
     <div className={`flex h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
       {/* Sidebar Navigation */}
@@ -93,7 +102,6 @@ export default function WebsiteMonitorUI() {
 
       {/* Main Content */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 p-6 space-y-6">
-       
         {/* Monitoring Stats */}
         <div className="grid grid-cols-3 gap-6">
           <Card className="shadow-lg p-6 bg-blue-100 dark:bg-blue-800 dark:text-white">
@@ -149,6 +157,7 @@ export default function WebsiteMonitorUI() {
                 animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0, y: -10 }}
                 className="border-b hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => handleWebsiteClick(site)} // Show chart when clicked
               >
                 <TableCell className="p-3 font-medium">{site.url}</TableCell>
                 <TableCell className="p-3">
@@ -176,6 +185,25 @@ export default function WebsiteMonitorUI() {
             ))}
           </TableBody>
         </Table>
+
+        {/* Render the website status chart for selected website */}
+        {selectedWebsite && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-6"
+          >
+            {/* Show loading spinner while chart is being loaded */}
+            {loadingChart ? (
+              <div className="flex justify-center">
+                <Loader2 className="animate-spin text-blue-600" size={40} />
+              </div>
+            ) : (
+              <WebsiteStatusChart url={selectedWebsite.url} />
+            )}
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );
