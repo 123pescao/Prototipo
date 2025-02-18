@@ -1,11 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Trash2, Sun, Moon, Home, Settings, Info } from "lucide-react";
-import { motion } from "framer-motion";
-import WebsiteStatusChart from "./WebsiteStatusChart";
+import { CircleCheck, CircleX } from "lucide-react";
 import { Chart as ChartJS, LineElement, CategoryScale, LinearScale, PointElement, Title, Tooltip, Legend } from 'chart.js';
 
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Title, Tooltip, Legend);
@@ -18,13 +15,8 @@ const fetchWebsiteStatus = async (url) => {
 export default function WebsiteMonitorUI() {
   const [websites, setWebsites] = useState([]);
   const [url, setUrl] = useState("");
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
+  const [loading, setLoading] = useState(false);  // Add loading state
   const [currentPage, setCurrentPage] = useState("home");
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-    localStorage.setItem("theme", darkMode ? "dark" : "light");
-  }, [darkMode]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -38,8 +30,18 @@ export default function WebsiteMonitorUI() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleInputChange = (e) => {
+    setUrl(e.target.value);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Prevent default form submission
+    addWebsite();
+  };
+
   const addWebsite = async () => {
     if (url.trim() !== "") {
+      setLoading(true);
       const newWebsite = {
         url,
         status: "Checking...",
@@ -53,6 +55,7 @@ export default function WebsiteMonitorUI() {
       setUrl("");
       const statusData = await fetchWebsiteStatus(url);
       setWebsites((prev) => prev.map((w) => (w.url === url ? { ...w, ...statusData } : w)));
+      setLoading(false);
     }
   };
 
@@ -60,79 +63,109 @@ export default function WebsiteMonitorUI() {
     setWebsites(websites.filter((site) => site.url !== targetUrl));
   };
 
-  const navButtons = [
-    { name: "Home", icon: Home },
-    { name: "Settings", icon: Settings },
-    { name: "About", icon: Info }
-  ];
+  const calculateUptimePercentage = () => {
+    const totalUptime = websites.reduce((acc, website) => acc + website.uptime, 0);
+    return websites.length > 0 ? ((totalUptime / websites.length) * 100).toFixed(2) : 0;
+  };
 
-  const chartData = useMemo(() => ({
-    labels: websites.map(site => site.url),
-    datasets: [
-      { label: 'Website Uptime', data: websites.map(site => site.uptime), borderColor: 'green', fill: false },
-      { label: 'Website Load Time', data: websites.map(site => site.loadTime), borderColor: 'red', fill: false },
-    ],
-  }), [websites]);
+  const calculateAverageResponseTime = () => {
+    const totalResponseTime = websites.reduce((acc, website) => acc + website.responseTime, 0);
+    return websites.length > 0 ? (totalResponseTime / websites.length).toFixed(2) : 0;
+  };
 
   return (
-    <div className={`flex h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
-      <motion.div initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="w-64 bg-gray-900 text-white p-6 shadow-lg">
-        <div className="flex items-center space-x-2">
-          <img src="/logo.png" alt="Watchly Logo" className="w-8 h-8" />
-          <h1 className="text-3xl font-bold text-white">Watchly</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black p-6 text-white">
+      <header className="flex justify-between items-center p-4 bg-black-800 rounded-lg shadow-lg transition-all duration-300">
+        <h1 className="text-3xl font-extrabold text-green-500">Watchly</h1>
+        <nav className="space-x-6">
+          <button className="text-lg hover:text-green-500 transition duration-300">Home</button>
+          <button className="text-lg hover:text-green-500 transition duration-300">Settings</button>
+          <button className="text-lg hover:text-green-500 transition duration-300">Help</button>
+        </nav>
+      </header>
+
+      <main className="mt-8">
+        <h2 className="text-center text-4xl font-semibold mb-8">Dashboard Overview</h2>
+
+        {/* Form for URL Input */}
+        <form className="flex justify-center mb-6" onSubmit={handleSubmit}>
+          <input
+            type="text"
+            className="p-3 rounded-lg bg-black-700 text-black mr-4 w-1/3"
+            placeholder="Enter Website URL"
+            value={url}
+            onChange={handleInputChange}
+          />
+          <Button
+            className="bg-green-500 hover:bg-green-600 py-2 px-4 text-lg rounded-lg"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Adding..." : "Add Website"}
+          </Button>
+        </form>
+
+        {/* Total Websites Monitored Card */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-8">
+          <Card className="bg-gray-800 text-center p-8 rounded-xl shadow-xl transition-transform transform hover:scale-105">
+            <CardContent>
+              <p className="text-xl text-green-400">Total Websites Monitored</p>
+              <p className="text-4xl font-bold text-green-500">{websites.length}</p>
+            </CardContent>
+          </Card>
+          {/* Uptime Percentage */}
+          <Card className="bg-gray-800 text-center p-8 rounded-xl shadow-xl transition-transform transform hover:scale-105">
+            <CardContent>
+              <p className="text-xl text-green-400">Uptime Percentage</p>
+              <p className="text-4xl font-bold text-green-500">
+                {calculateUptimePercentage()}%
+              </p>
+            </CardContent>
+          </Card>
+          {/* Average Response Time */}
+          <Card className="bg-gray-800 text-center p-8 rounded-xl shadow-xl transition-transform transform hover:scale-105">
+            <CardContent>
+              <p className="text-xl text-green-400">Average Response Time</p>
+              <p className="text-4xl font-bold text-green-500">
+                {calculateAverageResponseTime()} ms
+              </p>
+            </CardContent>
+          </Card>
         </div>
-        {navButtons.map(({ name, icon: Icon }) => (
-          <button key={name} onClick={() => setCurrentPage(name.toLowerCase())} className="mt-4 flex items-center space-x-2 bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700 w-full">
-            <Icon size={20} /> <span>{name}</span>
-          </button>
-        ))}
-        <motion.button onClick={() => setDarkMode(!darkMode)} className="mt-6 flex items-center space-x-2 bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700 w-full absolute bottom-6 left-0 right-0 mx-auto">
-          {darkMode ? <Sun size={20} /> : <Moon size={20} />} <span>{darkMode ? "Light Mode" : "Dark Mode"}</span>
-        </motion.button>
-      </motion.div>
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 p-6 space-y-6">
-        {currentPage === "home" && (
-          <div>
-            <Card className="shadow-lg rounded-xl dark:bg-gray-800 dark:text-white">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Input placeholder="Enter website URL" value={url} onChange={(e) => setUrl(e.target.value)} className="w-full p-2 border rounded-lg dark:bg-gray-700" />
-                  <Button onClick={addWebsite} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Add</Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Table className="border rounded-lg shadow-md dark:bg-gray-800 dark:text-white">
-              <TableHeader>
-                <TableRow className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-white">
-                  <TableHead>Website</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Uptime</TableHead>
-                  <TableHead>Speed</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {websites.map((site, index) => (
-                  <TableRow key={index} className="hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <TableCell>{site.url}</TableCell>
-                    <TableCell>{site.status}</TableCell>
-                    <TableCell>{site.uptime}%</TableCell>
-                    <TableCell>{site.loadTime} ms</TableCell>
-                    <TableCell>
-                      <Button onClick={() => removeWebsite(site.url)} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg">
-                        <Trash2 size={16} />
-                      </Button>
+        {/* Websites Table */}
+        <div className="mt-10 bg-gray-800 p-8 rounded-xl shadow-lg">
+          <Table className="text-green-400">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-sm text-white-500">Website URL</TableHead>
+                <TableHead className="text-sm text-white-500">Status</TableHead>
+                <TableHead className="text-sm text-white-500">Uptime</TableHead>
+                <TableHead className="text-sm text-white-500">Response Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {websites.map((website) => {
+                return (
+                  <TableRow key={website.url}>
+                    <TableCell className="text-gray-300">{website.url}</TableCell>
+                    <TableCell className={`flex items-center ${website.status === "Up" ? "text-green-500" : "text-red-500"}`}>
+                      {website.status === "Up" ? (
+                        <CircleCheck className="mr-2" />
+                      ) : (
+                        <CircleX className="mr-2" />
+                      )}
+                      {website.status}
                     </TableCell>
+                    <TableCell>{website.uptime}</TableCell>
+                    <TableCell>{website.responseTime}</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <WebsiteStatusChart data={chartData} />
-          </div>
-        )}
-      </motion.div>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </main>
     </div>
   );
-}
+};
