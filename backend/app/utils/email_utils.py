@@ -1,5 +1,7 @@
 import os
+import asyncio
 import sendgrid
+from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from dotenv import load_dotenv
 
@@ -18,7 +20,7 @@ else:
 if not FROM_EMAIL:
     print("❌ ERROR: FROM_EMAIL is missing in .env! Make sure it's a verified sender in SendGrid.")
 
-def send_email(to_email, subject, message):
+async def send_email_async(to_email, subject, message):
     if not SENDGRID_API_KEY:
         print("❌ ERROR: SendGrid API Key is missing!")
         return False
@@ -33,21 +35,19 @@ def send_email(to_email, subject, message):
         plain_text_content=message
     )
 
+    loop = asyncio.get_event_loop()
     try:
-        response = sg.send(email)
+        response = await loop.run_in_executor(None, sg.send, email)
         print(f"✅ Email Sent! Status Code: {response.status_code}")
-        print(f"Response Body: {response.body.decode('utf-8')}")
         return True
-    except sendgrid.exceptions.SendGridException as sg_err:
-        print(f"❌ SendGrid API Error: {sg_err}")
     except Exception as e:
         print(f"❌ General Error Sending Email: {str(e)}")
-
     return False
 
 # Test if SendGrid works
-test_email = "watchly.monitor@gmail.com"
-test_subject = "Test Email from Watchly"
-test_message = "This is a test email from Watchly using SendGrid."
+if __name__ == "__main__":
+    test_email = "watchly.monitor@gmail.com"
+    test_subject = "Test Email from Watchly"
+    test_message = "This is a test email from Watchly using SendGrid."
 
-send_email(test_email, test_subject, test_message)
+    asyncio.run(send_email_async(test_email, test_subject, test_message))
