@@ -15,3 +15,6 @@ flask-migrate # (For handling database migrations)
 flask-jwt-extended # (Better JWT handling)
 python-dotenv # (For managing environment variables)
 gunicorn      # (WSGI server for production)
+sendgrid
+httpx
+python-dotenv

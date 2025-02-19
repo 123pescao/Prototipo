@@ -1,57 +1,67 @@
-import requests
+import asyncio
+import httpx
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
-from app import create_app
-from app import db
+from app import create_app, db
 from app.models import Website, Metric, Alert, User
 from datetime import datetime
-from app.utils import email
+from app.utils.email_utils import send_email_async
+from sqlalchemy.orm import sessionmaker
 
-app = create_app()
 scheduler = BackgroundScheduler()
 
 # Function to check Website status
-def check_websites():
-    with app.app_context():
-        websites = Website.query.all()
-        for website in websites:
+async def check_websites(website):
+    async with httpx.AsyncClient() as client:
             try:
                 start_time = datetime.utcnow()
-                response = requests.get(website.url, timeout=5)
+                response = await client.get(website.url, timeout=5)
                 response_time = (datetime.utcnow() - start_time).total_seconds() * 1000
                 uptime = 1 if response.status_code == 200 else 0
+            except httpx.RequestError:
+                response_time = 0
+                uptime = 0
 
-                # Save metric
-                new_metric = Metric(
-                    website_id=website.id,
-                    response_time=response_time,
-                    uptime=uptime,
-                    timestamp=datetime.utcnow(),
-                )
-                db.session.add(new_metric)
-                db.session.commit()
+    return {
+        "website": website.id,
+        "response_time": response_time,
+        "uptime": uptime,
+        "timestamp": datetime.utcnow()
+    }
 
-                # Check if site is down (3 consecutive failures)
-                check_for_alert(website.id, "Website Down")
-                print(f"{website.url} is UP - {response_time}ms")
+#Function to check all websites
+async def check_all_websites(app):
+    with app.app_context():
+        websites = db.session.execute(db.select(Website)).scalars().all()
+        semaphore = asyncio.Semaphore(10)
 
-            except requests.RequestException:
-                # Site DOWN
-                new_metric = Metric(
-                    website_id=website.id,
-                    response_time=0,
-                    uptime=0,
-                    timestamp=datetime.utcnow(),
-                )
-                db.session.add(new_metric)
-                db.session.commit()
+        async def limited_check(website):
+            async with semaphore:
+                return await check_websites(website)
 
-                # Trigger Alert
-                check_for_alert(website.id, "Website Down")
-                print(f"{website.url} is DOWN!")
+        tasks = [limited_check(website) for website in websites]
+        results = await asyncio.gather(*tasks)
 
-# Function to check alert conditions
-def check_for_alert(website_id, alert_type):
+        db.session.bulk_insert_mappings(Metric, [
+            {
+                "website_id": result["website"],
+                "response_time": result["response_time"],
+                "uptime": result["uptime"],
+                "timestamp": result["timestamp"]
+            }
+            for result in results
+        ])
+        db.session.commit()
+
+        #Run alerts concurrently
+        alert_tasks = [
+            check_for_alert(result["website"], "Website Down")
+            for result in results if result["uptime"] == 0
+        ]
+        await asyncio.gather(*alert_tasks)
+
+#Function to check alert conditions
+async def check_for_alert(website_id, alert_type, app):
     with app.app_context():
         website = db.session.get(Website, website_id)
         if not website:
@@ -87,12 +97,14 @@ def check_for_alert(website_id, alert_type):
         #Send Email Alert
         subject = f"Alert: {website.url} is DOWN!"
         content = f"Watchly has detected that website: {website.url} is down. Please Verify Immediately!"
-        email.send_email(user.email, subject, content)
+        await send_email_async(user.email, subject, content)
 
 
 # Start monitoring in a background thread
-def start_monitoring():
-    scheduler.add_job(check_websites, "interval", minutes=5)
+def start_monitoring(app):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    scheduler.add_job(lambda: loop.run_until_complete(check_all_websites(app)), "interval", minutes=5)
     scheduler.start()
     print("✅Monitoring Services Started...")
 
@@ -100,4 +112,6 @@ def start_monitoring():
     atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == "__main__":
-    start_monitoring()
+    from app import create_app
+    app = create_app()
+    start_monitoring(app)

@@ -5,7 +5,7 @@ from app.routes.auth import token_required
 from app.models import Alert, Website
 from app import db
 from datetime import datetime
-from app.utils import email
+from app.utils import email_utils
 
 
 alerts_ns= Namespace('alerts', description="Alert Management Endpoints")

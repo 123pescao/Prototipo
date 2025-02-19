@@ -4,21 +4,32 @@ FROM python:3.11-slim
 # Set working directory inside container
 WORKDIR /app
 
-# Copy only requirements first to help Docker caching
-COPY requirements.txt ./
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    curl \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy only requirements first (to leverage Docker layer caching)
+COPY requirements.txt ./
 
 # Copy rest of backend code
 COPY . .
 
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Expose Flask default port
 EXPOSE 5000
 
-# Define environment variables
-ENV FLASK_APP=main.py
+# Set environment variables for Flask
+ENV FLASK_APP=main:app
 ENV FLASK_RUN_HOST=0.0.0.0
 
-# Start the Flask app with Gunicorn for production
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:app"]
+# Ensure database migrations are applied before running Gunicorn
+RUN flask db upgrade || true  # Avoid errors if migrations don't exist
+
+# Start Gunicorn with error logging
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:create_app()", "--log-level=debug"]

@@ -27,8 +27,7 @@ def create_app():
     api.add_namespace(metrics_ns)
     api.add_namespace(auth_ns)
 
-    # Health check route
-    @app.route("/status", methods=["GET"])
+    @app.route("/status", methods=['GET'])
     def status():
         return jsonify({"message": "Server is running"}), 200
 
