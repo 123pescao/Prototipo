@@ -4,6 +4,8 @@ import { Button } from "./ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { CircleCheck, CircleX } from "lucide-react";
 import { Chart as ChartJS, LineElement, CategoryScale, LinearScale, PointElement, Title, Tooltip, Legend } from 'chart.js';
+import AnimatedHeader from "./AnimatedHeader";
+import InteractiveCharts from "./InteractiveCharts";
 
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Title, Tooltip, Legend);
 
@@ -74,28 +76,41 @@ export default function WebsiteMonitorUI() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black p-6 text-white">
-      <header className="flex justify-between items-center p-4 bg-black-800 rounded-lg shadow-lg transition-all duration-300">
-        <h1 className="text-3xl font-extrabold text-green-500">Watchly</h1>
+    <div className="min-h-screen w-full bg-black p-6 text-white">
+      <header className="flex justify-between items-center p-4 bg-gray-800 rounded-lg shadow-lg transition-all duration-300">
+      <div className="flex items-center space-x-3">
+      <img src="/hawk.png" alt="Watchly Logo" className="w-16 h-16" />
+          <h1 className="text-3xl font-extrabold text-green-500">Watchly</h1>
+        </div>
         <nav className="space-x-6">
-          <button className="text-lg hover:text-green-500 transition duration-300">Home</button>
-          <button className="text-lg hover:text-green-500 transition duration-300">Settings</button>
-          <button className="text-lg hover:text-green-500 transition duration-300">Help</button>
+          <button className="text-lg hover:text-green-500 transition duration-300">SIGN UP</button>
+          <button className="text-lg hover:text-green-500 transition duration-300">LOGIN</button>
+          <button className="text-lg hover:text-green-500 transition duration-300">SETTINGS</button>
+          <button className="text-lg hover:text-green-500 transition duration-300">ABOUT</button>
+          <Button
+  className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg"
+  onClick={() => {
+    localStorage.removeItem("authToken"); // Example: Clearing auth token
+    window.location.href = "/login"; // Redirecting to login page
+  }}
+>
+  LOG OUT
+</Button>
         </nav>
       </header>
 
-      <main className="mt-8">
-        <h2 className="text-center text-4xl font-semibold mb-8">Dashboard Overview</h2>
+      <main className="mt-0">
+      <AnimatedHeader />  {/* Add it here */}
 
         {/* Form for URL Input */}
         <form className="flex justify-center mb-6" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            className="p-3 rounded-lg bg-black-700 text-black mr-4 w-1/3"
-            placeholder="Enter Website URL"
-            value={url}
-            onChange={handleInputChange}
-          />
+        <input
+          type="text"
+          className="p-3 rounded-lg bg-gray-900 text-white border border-gray-700 mr-4 w-1/3"
+          placeholder="Enter Website URL"
+          value={url}
+          onChange={handleInputChange}
+        />
           <Button
             className="bg-green-500 hover:bg-green-600 py-2 px-4 text-lg rounded-lg"
             type="submit"
@@ -109,14 +124,14 @@ export default function WebsiteMonitorUI() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-8">
           <Card className="bg-gray-800 text-center p-8 rounded-xl shadow-xl transition-transform transform hover:scale-105">
             <CardContent>
-              <p className="text-xl text-green-400">Total Websites Monitored</p>
+              <p className="text-xl text-green-400">Websites Monitored</p>
               <p className="text-4xl font-bold text-green-500">{websites.length}</p>
             </CardContent>
           </Card>
           {/* Uptime Percentage */}
           <Card className="bg-gray-800 text-center p-8 rounded-xl shadow-xl transition-transform transform hover:scale-105">
             <CardContent>
-              <p className="text-xl text-green-400">Uptime Percentage</p>
+              <p className="text-xl text-green-400">Uptime</p>
               <p className="text-4xl font-bold text-green-500">
                 {calculateUptimePercentage()}%
               </p>
@@ -125,14 +140,18 @@ export default function WebsiteMonitorUI() {
           {/* Average Response Time */}
           <Card className="bg-gray-800 text-center p-8 rounded-xl shadow-xl transition-transform transform hover:scale-105">
             <CardContent>
-              <p className="text-xl text-green-400">Average Response Time</p>
+              <p className="text-xl text-green-400">Response Time</p>
               <p className="text-4xl font-bold text-green-500">
                 {calculateAverageResponseTime()} ms
               </p>
             </CardContent>
           </Card>
         </div>
-
+        {/* Performance Insights */}
+        <div className="mt-8">
+      <h2 className="text-2xl font-semibold mb-4 text-center">Performance Insights</h2>
+    <InteractiveCharts websites={websites} />
+        </div>
         {/* Websites Table */}
         <div className="mt-10 bg-gray-800 p-8 rounded-xl shadow-lg">
           <Table className="text-green-400">

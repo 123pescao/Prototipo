@@ -3,13 +3,20 @@
 @tailwind utilities;
 
 
-body {
+html, body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  padding: 0;
+  background-color: black; /* Ensure the whole page is black */
+  min-height: 100vh; /* Make sure it covers the whole viewport */
+  width: 100vw; /* Ensure it spans the full width */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+#root {
+  min-height: 100vh;
+  width: 100vw;
+  background-color: black;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Code styles */
