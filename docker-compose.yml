@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   backend:
-    build: 
+    build:
       context: ./backend
     ports:
       - "5000:5000"
@@ -16,14 +16,14 @@ services:
     command: ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:app"]
 
   frontend:
-    build: 
-      context: ./frontend
+    build:
+      context: ./watchly
     ports:
       - "3000:80"
     depends_on:
       - backend
     volumes:
-      - ./frontend:/app
+      - ./watchly:/app
 
   db:
     image: postgres:15
