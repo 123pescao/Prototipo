@@ -1,7 +1,7 @@
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import LandingPage from "./components/LandingPage";
-import Login from "./components/Auth/Login";
+import Login from "./components/Login";
 import WebsiteMonitorUI from "./components/WebsiteMonitorUI";
 import "./index.css";
 
