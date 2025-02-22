@@ -3,11 +3,7 @@ import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { CircleCheck, CircleX } from "lucide-react";
-import { Chart as ChartJS, LineElement, CategoryScale, LinearScale, PointElement, Title, Tooltip, Legend } from 'chart.js';
 import AnimatedHeader from "./AnimatedHeader";
-import InteractiveCharts from "./InteractiveCharts";
-
-ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Title, Tooltip, Legend);
 
 const fetchWebsiteStatus = async (url) => {
   const response = await fetch(`https://api.yourwebsite-monitor.com/status?url=${url}`);
@@ -76,10 +72,10 @@ export default function WebsiteMonitorUI() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-black p-6 text-white">
+    <div className="min-h-screen w-full bg-white p-6 text-black">
       <header className="flex justify-between items-center p-4 bg-gray-800 rounded-lg shadow-lg transition-all duration-300">
-      <div className="flex items-center space-x-3">
-      <img src="/hawk.png" alt="Watchly Logo" className="w-16 h-16" />
+        <div className="flex items-center space-x-3">
+          <img src="/hawk.png" alt="Watchly Logo" className="w-16 h-16" />
           <h1 className="text-3xl font-extrabold text-green-500">Watchly</h1>
         </div>
         <nav className="space-x-6">
@@ -88,37 +84,19 @@ export default function WebsiteMonitorUI() {
           <button className="text-lg hover:text-green-500 transition duration-300">SETTINGS</button>
           <button className="text-lg hover:text-green-500 transition duration-300">ABOUT</button>
           <Button
-  className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg"
-  onClick={() => {
-    localStorage.removeItem("authToken"); // Example: Clearing auth token
-    window.location.href = "/login"; // Redirecting to login page
-  }}
->
-  LOG OUT
-</Button>
+            className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg"
+            onClick={() => {
+              localStorage.removeItem("authToken"); // Example: Clearing auth token
+              window.location.href = "/login"; // Redirecting to login page
+            }}
+          >
+            LOG OUT
+          </Button>
         </nav>
       </header>
 
       <main className="mt-0">
-      <AnimatedHeader />  {/* Add it here */}
-
-        {/* Form for URL Input */}
-        <form className="flex justify-center mb-6" onSubmit={handleSubmit}>
-        <input
-          type="text"
-          className="p-3 rounded-lg bg-gray-900 text-white border border-gray-700 mr-4 w-1/3"
-          placeholder="Enter Website URL"
-          value={url}
-          onChange={handleInputChange}
-        />
-          <Button
-            className="bg-green-500 hover:bg-green-600 py-2 px-4 text-lg rounded-lg"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? "Adding..." : "Add Website"}
-          </Button>
-        </form>
+        <AnimatedHeader />  {/* Add it here */}
 
         {/* Total Websites Monitored Card */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-8">
@@ -147,11 +125,7 @@ export default function WebsiteMonitorUI() {
             </CardContent>
           </Card>
         </div>
-        {/* Performance Insights */}
-        <div className="mt-8">
-      <h2 className="text-2xl font-semibold mb-4 text-center">Performance Insights</h2>
-    <InteractiveCharts websites={websites} />
-        </div>
+
         {/* Websites Table */}
         <div className="mt-10 bg-gray-800 p-8 rounded-xl shadow-lg">
           <Table className="text-green-400">
@@ -167,7 +141,7 @@ export default function WebsiteMonitorUI() {
               {websites.map((website) => {
                 return (
                   <TableRow key={website.url}>
-                    <TableCell className="text-gray-300">{website.url}</TableCell>
+                    <TableCell className="text-white-300">{website.url}</TableCell>
                     <TableCell className={`flex items-center ${website.status === "Up" ? "text-green-500" : "text-red-500"}`}>
                       {website.status === "Up" ? (
                         <CircleCheck className="mr-2" />
@@ -185,6 +159,24 @@ export default function WebsiteMonitorUI() {
           </Table>
         </div>
       </main>
+
+      {/* Form for URL Input moved to the bottom */}
+      <form className="flex justify-center mt-8" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          className="p-3 rounded-lg bg-white-900 text-white border border-gray-700 mr-4 w-1/3"
+          placeholder="Enter Website URL"
+          value={url}
+          onChange={handleInputChange}
+        />
+        <Button
+          className="bg-green-500 hover:bg-green-600 py-2 px-4 text-lg rounded-lg"
+          type="submit"
+          disabled={loading}
+        >
+          {loading ? "Adding..." : "Add Website"}
+        </Button>
+      </form>
     </div>
   );
-};
+}
