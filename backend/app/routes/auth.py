@@ -6,6 +6,7 @@ from app import db
 import jwt
 from datetime import datetime, timedelta
 from app.config import SECRET_KEY
+from app.utils.logger import logger
 
 
 auth_ns = Namespace('auth', description="Authentication Endpoints")
@@ -17,7 +18,7 @@ user_model = auth_ns.model("User", {
     "email": fields.String
 })
 
-register_model = auth_ns.model("Regiter", {
+register_model = auth_ns.model("Register", {
     "name": fields.String(required=True, description="User's Name"),
     "email": fields.String(required=True, description="User's Email"),
     "password": fields.String(required=True, description="User's Password")
@@ -60,22 +61,29 @@ def token_required(f):
             print("Recieved Token:", token)
 
             if not token:
-                return jsonify({"error": "Token is missing!"}), 401
+                logger.warning("Unauthorized access attempt: Missing token")
+                return {"error": "Token is missing!"}, 401
 
             try:
                 #Decode token
                 data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                print(f"Debug: Decoded Token Data - {data}")
                 #Fetch user from database
                 current_user = db.session.get(User, data["user_id"])
-                if not current_user:
-                    return jsonify({"error": "Invalid token!"}), 401
+                print(f"Debug: Retrieved User - {current_user}")
+
+                if not isinstance(current_user, User):
+                    logger.warning("Unauthorized access attempt: Invalid token")
+                    return {"error": "Invalid token!"}, 401
             except jwt.ExpiredSignatureError:
-                return jsonify({"error": "Token has expired!"}), 401
+                logger.warning("Unauthorized access attempt: Expired token")
+                return {"error": "Token has expired!"}, 401
             except jwt.InvalidTokenError:
-                return jsonify({"error": "Invalid token!"}), 401
+                logger.warning("Unauthorized access attempt: Invalid token")
+                return {"error": "Invalid token!"}, 401
 
             #Pass current user to route
-            return f(current_user, *args, **kwargs)
+            return f(*args, **kwargs, current_user=current_user)
 
     return decorated
 
@@ -99,6 +107,7 @@ class RegisterUser(Resource):
 
         #Check if email already registered
         if User.query.filter_by(email=email).first():
+            logger.warning(f"Registration failed: Email {email} already exists.")
             return {"error": "Email already exists"}, 409
 
         #Create a new User object
@@ -109,6 +118,7 @@ class RegisterUser(Resource):
         db.session.add(new_user)
         db.session.commit()
 
+        logger.warning(f"New User Registered: {email}")
         return {
             "message": "User registered successfully!",
             "user": {
@@ -133,12 +143,14 @@ class LoginUser(Resource):
         password = data.get('password')
 
         if not email or not password:
-            return jsonify({"error": "Missing email or password"}), 400
+            logger.warning("Login attempt with missing credentials")
+            return {"error": "Missing email or password"}, 400
 
         #Fetch user by email
         user = User.query.filter_by(email=email).first()
         if not user or not user.check_password(password):
-            return jsonify({"error": "Invalid email or password"}), 401
+            logger.warning(f"Failed login attempt for {email}")
+            return {"error": "Invalid email or password"}, 401
 
         #Generate JWT Token
         token = jwt.encode(
@@ -150,6 +162,7 @@ class LoginUser(Resource):
             algorithm="HS256"
         )
 
+        logger.info(f"User {email} logged in successfully.")
         return {
             "message": "Login successful!",
             "token": token
@@ -164,6 +177,12 @@ class UserProfile(Resource):
     @token_required
     def get(self, current_user):
         """Retrieve User Profile"""
+        print(f"Debug: current_user type: {type(current_user)}")
+
+        if not current_user or not isinstance(current_user, User):
+            logger.error("Profile access denied: User not found or invalid type.")
+            return {"error": "User not found or invalid type."}, 500
+
         return {
             "id": current_user.id,
             "name": current_user.name,
@@ -211,17 +230,17 @@ class ChangePassword(Resource):
         new_password = data.get("new_password")
 
         if not old_password or not new_password:
-            return jsonify({"error": "Missing old or new password"}), 400
+            return {"error": "Missing old or new password"}, 400
 
         #Verify old password
         if not current_user.check_password(old_password):
-            return jsonify({"error": "Incorrect old password"}), 401
+            return {"error": "Incorrect old password"}, 401
 
         #Update password
         current_user.set_password(new_password)
         db.session.commit()
 
-        return jsonify({"message": "Password updated successfully!"}), 200
+        return {"message": "Password updated successfully!"}, 200
 
 # Delete User Account
 @auth_ns.route('/delete')
@@ -233,6 +252,7 @@ class DeleteUser(Resource):
         """Delete User Account"""
         user = db.session.get(User, current_user.id)
         if not user:
+            logger.warning(f"Delete request for non-existent User ID {current_user.id}")
             return {"error": "User not found"}, 404
 
         websites = Website.query.filter_by(user_id=user.id).all()
@@ -244,4 +264,5 @@ class DeleteUser(Resource):
         db.session.delete(user)
         db.session.commit()
 
+        logger.info(f"User {current_user.email} deleted their account")
         return {"message": "User account deleted successfully!"}, 200
