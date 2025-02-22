@@ -114,10 +114,10 @@ export default function WebsiteMonitorUI() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <Monitor className="w-10 h-10 text-blue-500" />
-                <Eye className="w-5 h-5 text-white absolute bottom-0 right-0" />
+                <Monitor className="w-10 h-10 text-green-500 animate-pulse" /> {/* Updated */}
+                <Eye className="w-5 h-5 text-green-500 absolute bottom-0 right-0 animate-float" /> {/* Updated */}
               </div>
-              <h1 className="text-2xl font-bold text-white">Watchly</h1>
+              <h1 className="text-2xl font-bold text-green-500">Watchly</h1> {/* Changed text-white to text-green-500 */}
             </div>
 
             <div className="flex items-center space-x-6">
@@ -136,7 +136,7 @@ export default function WebsiteMonitorUI() {
                 <Settings className="w-6 h-6 text-white/80 hover:text-white transition-colors" />
               </button>
               <button 
-                className="flex items-center space-x-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center space-x-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-colors"
                 onClick={() => {
                   localStorage.removeItem("authToken");
                   navigate("/login");
@@ -209,7 +209,7 @@ export default function WebsiteMonitorUI() {
             <Button
               type="submit"
               disabled={loading}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
             >
               {loading ? "Adding..." : "Add Website"}
             </Button>
