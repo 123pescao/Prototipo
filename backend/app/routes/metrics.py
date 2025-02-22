@@ -31,10 +31,21 @@ class GetMetrics(Resource):
     def get(self, current_user):
         """Fetch all metrics for a specific website"""
         website_id = request.args.get('website_id', type=int)
+        limit = request.args.get('limit', type=int, default=10)     #Metrics set to last 10 logs default
+
         if not website_id:
             return {"error": "Website ID is required"}, 400
 
-        metrics = Metric.query.filter_by(website_id=website_id).all()
+        query = Metric.query.filter_by(website_id=website_id).order_by(Metric.timestamp.desc())
+
+        if limit > 0:
+            query = query.limit(limit)
+
+        metrics = query.all()
+
+        if not metrics:
+            return {"message": "No data found for this website"}, 404
+
         return [{
             "id": metric.id,
             "website_id": metric.website_id,

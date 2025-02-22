@@ -7,20 +7,25 @@ from app.models import Website, Metric, Alert, User
 from datetime import datetime
 from app.utils.email_utils import send_email_async
 from sqlalchemy.orm import sessionmaker
+from app.utils.logger import logger
 
 scheduler = BackgroundScheduler()
 
 # Function to check Website status
 async def check_websites(website):
+    logger.info(f"🔎 Checking website: {website.url}")
     async with httpx.AsyncClient() as client:
             try:
                 start_time = datetime.utcnow()
-                response = await client.get(website.url, timeout=5)
+                response = await client.get(website.url, timeout=5, follow_redirects=True)
                 response_time = (datetime.utcnow() - start_time).total_seconds() * 1000
                 uptime = 1 if response.status_code == 200 else 0
-            except httpx.RequestError:
+                logger.info(f"Checked website {website.url} - Status: {response.status_code}, Response Time: {response_time}ms, Uptime: {uptime}")
+
+            except httpx.RequestError as e:
                 response_time = 0
                 uptime = 0
+                logger.error(f"❌ {website.url} is DOWN - Error: {str(e)}")
 
     return {
         "website": website.id,
@@ -52,11 +57,14 @@ async def check_all_websites(app):
             for result in results
         ])
         db.session.commit()
+        print("✅Metrics saved successfully!")
 
         #Run alerts concurrently
         alert_tasks = [
-            check_for_alert(result["website"], "Website Down")
-            for result in results if result["uptime"] == 0
+            check_for_alert(result["website"], "Website Down", app)
+            if result["uptime"] == 0
+            else check_for_alert(result["website"], "Website Up", app)
+            for result in results
         ]
         await asyncio.gather(*alert_tasks)
 
@@ -65,39 +73,54 @@ async def check_for_alert(website_id, alert_type, app):
     with app.app_context():
         website = db.session.get(Website, website_id)
         if not website:
+            logger.error(f"Alert triggered for non-existent website ID {website_id}")
             print(f"Website ID {website_id} not found.")
             return
 
         user = db.session.get(User, website.user_id)
         if not user:
+            logger.error(f"User not found for alert on website {website.url}")
             print(f"User for Website ID {website_id} not found.")
             return
 
         existing_alert = Alert.query.filter_by(
             website_id=website_id,
-            alert_type=alert_type,
+            alert_type="Website Down",
             status="unresolved"
         ).first()
 
-        if existing_alert:
-            print(f"Alert already exists for Website ID {website_id} - Type: {alert_type}")
-            return  # Do NOT create a duplicate alert
+        if alert_type == "Website Down":
+            if existing_alert:
+                logger.error(f"Alert already exists for {website.url} - Type: {alert_type}")
+                print(f"Alert already exists for Website ID {website_id} - Type: {alert_type}")
+                return  # Do NOT create a duplicate alert
 
-        # If no unresolved alert exists, create a new one
-        new_alert = Alert(
-            website_id=website_id,
-            alert_type=alert_type,
-            status="unresolved",
-            timestamp=datetime.utcnow(),
-        )
-        db.session.add(new_alert)
-        db.session.commit()
-        print(f"Alert triggered for {website.url} - Type: {alert_type}")
+            # If no unresolved alert exists, create a new one
+            new_alert = Alert(
+                website_id=website_id,
+                alert_type=alert_type,
+                status="unresolved",
+                timestamp=datetime.utcnow(),
+            )
+            db.session.add(new_alert)
+            db.session.commit()
+            logger.info(f"New alert created for {website.url} - Type: {alert_type}")
+            print(f"Alert triggered for {website.url} - Type: {alert_type}")
 
-        #Send Email Alert
-        subject = f"Alert: {website.url} is DOWN!"
-        content = f"Watchly has detected that website: {website.url} is down. Please Verify Immediately!"
-        await send_email_async(user.email, subject, content)
+            #Send Email Alert
+            subject = f"Alert: {website.url} is DOWN!"
+            content = f"Watchly has detected that website: {website.url} is down. Please Verify Immediately!"
+            await send_email_async(user.email, subject, content)
+
+        elif alert_type == "Website Up":
+            if existing_alert:
+                existing_alert.status = "resolved"
+                db.session.commit()
+                logger.info(f"✅ Alert resolved for {website.url} - Site is back online.")
+
+                subject = f"✅ Resolved: {website.url} is back UP!"
+                content = f"Good news! {website.url} is back online and accessible."
+                await send_email_async(user.email, subject, content)
 
 
 # Start monitoring in a background thread
