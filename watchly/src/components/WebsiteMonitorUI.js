@@ -5,9 +5,35 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Activity, AlertTriangle, Bell, CheckCircle as CircleCheck, Circle as CircleX, Clock, Eye, Globe, LogOut, Monitor, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+// Fetch website status from the backend
 const fetchWebsiteStatus = async (url) => {
-  const response = await fetch(`https://api.yourwebsite-monitor.com/status?url=${url}`);
-  return response.json();
+  try {
+    const response = await fetch(`http://localhost:5000/websites/status?url=${url}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+    return response.json();
+  } catch (error) {
+    console.error('Failed to fetch website status:', error);
+    return { status: 'Down', uptime: 0, responseTime: 0 };
+  }
+};
+
+// Fetch all websites from the backend
+const fetchWebsites = async () => {
+  try {
+    const response = await fetch('http://localhost:5000/websites', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch websites:', error);
+    return [];
+  }
 };
 
 export default function WebsiteMonitorUI() {
@@ -16,67 +42,98 @@ export default function WebsiteMonitorUI() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, message: "Website example.com is down!", type: "error", time: "2 min ago" },
-    { id: 2, message: "Response time improved for test.com", type: "success", time: "5 min ago" }
-  ]);
+  const [notifications, setNotifications] = useState([]); // Empty notifications array
 
+  // Fetch websites on component mount
+  useEffect(() => {
+    const loadWebsites = async () => {
+      const data = await fetchWebsites();
+      setWebsites(data);
+    };
+    loadWebsites();
+  }, []);
+
+  // Periodically update website statuses
   useEffect(() => {
     const interval = setInterval(async () => {
-      setWebsites((prevWebsites) =>
-        prevWebsites.map(async (site) => {
+      const updatedWebsites = await Promise.all(
+        websites.map(async (site) => {
           const statusData = await fetchWebsiteStatus(site.url);
           return { ...site, ...statusData };
         })
       );
+      setWebsites(updatedWebsites);
     }, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
+    return () => clearInterval(interval);
+  }, [websites]);
+
+  // Handle URL input change
   const handleInputChange = (e) => {
     setUrl(e.target.value);
   };
 
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    addWebsite();
+    await addWebsite();
   };
 
+  // Add a new website
   const addWebsite = async () => {
     if (url.trim() !== "") {
       setLoading(true);
-      const newWebsite = {
-        url,
-        status: "Checking...",
-        history: [],
-        speed: "Unknown",
-        uptime: 100,
-        alertTriggered: false,
-        loadTime: 0,
-        responseTime: Math.floor(Math.random() * 500) + 100, // Simulated response time
-      };
-      setWebsites((prev) => [...prev, newWebsite]);
-      setUrl("");
-      const statusData = await fetchWebsiteStatus(url);
-      setWebsites((prev) => prev.map((w) => (w.url === url ? { ...w, ...statusData } : w)));
-      setLoading(false);
+      try {
+        const response = await fetch('http://localhost:5000/websites', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ url, name: url, frequency: 5 }),
+        });
+        if (!response.ok) {
+          throw new Error('Failed to add website');
+        }
+        const newWebsite = await response.json();
+        setWebsites((prev) => [...prev, newWebsite]);
+        setUrl("");
+      } catch (error) {
+        console.error('Failed to add website:', error);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const removeWebsite = (targetUrl) => {
-    setWebsites(websites.filter((site) => site.url !== targetUrl));
+  // Remove a website
+  const removeWebsite = async (websiteId) => {
+    try {
+      await fetch(`http://localhost:5000/websites/${websiteId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      setWebsites((prev) => prev.filter((site) => site.id !== websiteId));
+    } catch (error) {
+      console.error('Failed to remove website:', error);
+    }
   };
 
+  // Calculate uptime percentage
   const calculateUptimePercentage = () => {
     const totalUptime = websites.reduce((acc, website) => acc + website.uptime, 0);
     return websites.length > 0 ? ((totalUptime / websites.length) * 100).toFixed(2) : 0;
   };
 
+  // Calculate average response time
   const calculateAverageResponseTime = () => {
     const totalResponseTime = websites.reduce((acc, website) => acc + website.responseTime, 0);
     return websites.length > 0 ? (totalResponseTime / websites.length).toFixed(2) : 0;
   };
 
+  // Stats for the dashboard
   const stats = [
     {
       icon: Globe,
@@ -99,7 +156,7 @@ export default function WebsiteMonitorUI() {
     {
       icon: AlertTriangle,
       title: "Active Alerts",
-      value: notifications.length,
+      value: notifications.length, // No hardcoded value
       color: "text-yellow-500"
     }
   ];
@@ -114,10 +171,10 @@ export default function WebsiteMonitorUI() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <Monitor className="w-10 h-10 text-green-500 animate-pulse" /> {/* Updated */}
-                <Eye className="w-5 h-5 text-green-500 absolute bottom-0 right-0 animate-float" /> {/* Updated */}
+                <Monitor className="w-10 h-10 text-green-500 animate-pulse" />
+                <Eye className="w-5 h-5 text-green-500 absolute bottom-0 right-0 animate-float" />
               </div>
-              <h1 className="text-2xl font-bold text-green-500">Watchly</h1> {/* Changed text-white to text-green-500 */}
+              <h1 className="text-2xl font-bold text-green-500">Watchly</h1>
             </div>
 
             <div className="flex items-center space-x-6">
@@ -126,11 +183,7 @@ export default function WebsiteMonitorUI() {
                 onClick={() => setShowNotifications(!showNotifications)}
               >
                 <Bell className="w-6 h-6 text-white/80 hover:text-white transition-colors" />
-                {notifications.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
-                    {notifications.length}
-                  </span>
-                )}
+                {/* Removed notification count */}
               </button>
               <button onClick={() => navigate("/settings")}>
                 <Settings className="w-6 h-6 text-white/80 hover:text-white transition-colors" />
@@ -151,30 +204,32 @@ export default function WebsiteMonitorUI() {
 
         {/* Notifications Dropdown */}
         {showNotifications && (
-          <div className="absolute right-4 top-16 w-80 bg-white/10 backdrop-blur-xl rounded-lg border border-white/10 shadow-xl z-50">
-            <div className="p-4">
-              <h3 className="text-white font-semibold mb-3">Notifications</h3>
-              <div className="space-y-3">
-                {notifications.map((notification) => (
-                  <div 
-                    key={notification.id}
-                    className="flex items-start space-x-3 p-3 rounded-lg bg-white/5"
-                  >
-                    {notification.type === "error" ? (
-                      <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                    ) : (
-                      <CircleCheck className="w-5 h-5 text-green-400 flex-shrink-0" />
-                    )}
-                    <div>
-                      <p className="text-white text-sm">{notification.message}</p>
-                      <p className="text-white/50 text-xs mt-1">{notification.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+    <div className="fixed right-4 top-16 w-80 bg-white/10 backdrop-blur-xl rounded-lg border border-white/10 shadow-xl z-[99999]">
+    <div className="p-4">
+      <h3 className="text-white font-semibold mb-3">Notifications</h3>
+      <div className="space-y-3">
+        {notifications.map((notification) => (
+          <div 
+            key={notification.id}
+            className="flex items-start space-x-3 p-3 rounded-lg bg-white/5"
+          >
+            {notification.type === "error" ? (
+              <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+            ) : (
+              <CircleCheck className="w-5 h-5 text-green-400 flex-shrink-0" />
+            )}
+            <div>
+              <p className="text-white text-sm">{notification.message}</p>
+              <p className="text-white/50 text-xs mt-1">{notification.time}</p>
             </div>
           </div>
-        )}
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+
+
       </header>
 
       <main className="container mx-auto px-4 py-8 relative z-10">
@@ -230,7 +285,7 @@ export default function WebsiteMonitorUI() {
             </TableHeader>
             <TableBody>
               {websites.map((website) => (
-                <TableRow key={website.url} className="border-white/10">
+                <TableRow key={website.id} className="border-white/10">
                   <TableCell className="text-white">{website.url}</TableCell>
                   <TableCell>
                     <span className={`flex items-center space-x-2 ${
@@ -248,7 +303,7 @@ export default function WebsiteMonitorUI() {
                   <TableCell className="text-white">{website.responseTime} ms</TableCell>
                   <TableCell>
                     <Button
-                      onClick={() => removeWebsite(website.url)}
+                      onClick={() => removeWebsite(website.id)}
                       className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1 rounded"
                     >
                       Remove

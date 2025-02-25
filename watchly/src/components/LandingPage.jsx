@@ -61,12 +61,6 @@ const LandingPage = () => {
           <p className="text-lg md:text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
             Get real-time insights and instant alerts. Keep your systems running smoothly with our advanced monitoring solution.
           </p>
-          <button
-            className="bg-green-500 text-white px-8 py-4 rounded-lg font-medium hover:bg-green-600 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
-            onClick={() => navigate("/signup")} // Redirect to sign-up page
-          >
-            Get Started
-          </button>
         </div>
 
         {/* Dashboard Preview */}
@@ -122,8 +116,8 @@ const LandingPage = () => {
             </p>
             <button
               className="bg-green-500 text-white px-8 py-4 rounded-lg font-medium hover:bg-green-600 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
-              onClick={() => navigate("/signup")} // Redirect to sign-up page
-            >
+              onClick={() => navigate("/login?mode=signup")} // Redirect to login page with sign-up mode
+              >
               Get Started Now
             </button>
           </div>
