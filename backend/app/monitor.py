@@ -122,16 +122,16 @@ async def check_for_alert(website_id, alert_type, app):
                 content = f"Good news! {website.url} is back online and accessible."
                 await send_email_async(user.email, subject, content)
 
+def run_monitoring_task(app):
+    """Runs the async check_all_websites() function in a synchronous context."""
+    asyncio.run(check_all_websites(app))
 
-# Start monitoring in a background thread
+
 def start_monitoring(app):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    scheduler.add_job(lambda: loop.run_until_complete(check_all_websites(app)), "interval", minutes=5)
+    """Starts the APScheduler job for monitoring websites at intervals."""
+    scheduler.add_job(run_monitoring_task, "interval", minutes=5, args=[app])
     scheduler.start()
-    print("✅Monitoring Services Started...")
-
-    # Ensure APScheduler stops when app exits
+    print("✅ Monitoring Services Started...")
     atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == "__main__":
