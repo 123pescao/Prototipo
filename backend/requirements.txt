@@ -18,3 +18,4 @@ gunicorn      # (WSGI server for production)
 sendgrid
 httpx
 python-dotenv
+psycopg2-binary
