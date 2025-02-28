@@ -50,3 +50,7 @@ Database created successfully!
 2025-02-21 14:36:38,147 - INFO - Scheduler has been shut down
 2025-02-21 14:36:38,147 - DEBUG - Looking for jobs to run
 2025-02-21 14:36:38,147 - DEBUG - No jobs; waiting until a job is added
+/etc/timezone is deprecated on Debian, and no longer reliable. Ignoring.
+/etc/timezone is deprecated on Debian, and no longer reliable. Ignoring.
+/etc/timezone is deprecated on Debian, and no longer reliable. Ignoring.
+/etc/timezone is deprecated on Debian, and no longer reliable. Ignoring.

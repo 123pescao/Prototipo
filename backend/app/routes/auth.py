@@ -214,6 +214,14 @@ class UserProfile(Resource):
             "email": current_user.email
         }, 200
 
+#List all users
+@auth_ns.route("/users")
+class UserList(Resource):
+    def get(self):
+        """Return all users"""
+        users = User.query.all()
+        return [{"id": u.id, "name": u.name, "email": u.email} for u in users], 200
+
 #Change User Password
 @auth_ns.route('/change-password')
 class ChangePassword(Resource):
