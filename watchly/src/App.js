@@ -43,14 +43,11 @@ function App() {
   return (
     <div className="App min-h-screen">
       <Routes>
-        {/* Landing page or WebsiteMonitorUI based on user authentication */}
-        <Route
-          path="/"
-          element={user ? <WebsiteMonitorUI onLogout={handleLogout} /> : <LandingPage />}
-        />
-        {/* Login page route */}
+        {/* Landing page is always the first page */}
+        <Route path="/" element={<LandingPage />} />
+        {/* Login page comes after the landing page */}
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
-        {/* Dashboard route, protected by user authentication */}
+        {/* Dashboard route, accessible only if user is authenticated */}
         <Route
           path="/dashboard"
           element={user ? (

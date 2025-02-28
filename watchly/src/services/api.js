@@ -1,7 +1,6 @@
 import axios from "axios";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "https://watchly-worker.joel-caban2017.workers.dev";
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -25,18 +24,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
-      // Server responded with a status other than 2xx
       console.error('API Error:', error.response.data);
       if (error.response.status === 401) {
-        // Token expired or unauthorized, you can handle this by redirecting to login
-        // For example:
-        window.location.href = "/login";
+        localStorage.setItem("redirectAfterLogin", window.location.pathname);
+        window.location.href = "/login"; // Redirect to login
       }
     } else if (error.request) {
-      // No response was received from the server
       console.error('Network Error:', error.request);
     } else {
-      // Something else caused the error
       console.error('Unknown Error:', error.message);
     }
     return Promise.reject(error);
@@ -59,5 +54,43 @@ export const addMetric = (metricData) => api.post("/metrics/add", metricData);
 // Alerts
 export const getAlerts = (websiteId) => api.get(`/alerts/?website_id=${websiteId}`);
 export const updateAlert = (alertId, status) => api.patch(`/alerts/${alertId}`, { status });
+
+// Fetch Website Status
+export const fetchWebsiteStatus = async (url) => {
+  try {
+    const response = await api.get(`/status?url=${encodeURIComponent(url)}`);
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch website status:", error);
+    return { status: "offline" }; // Fallback status
+  }
+};
+
+// Fetch all websites from the backend
+export const fetchWebsites = async () => {
+  try {
+    const response = await api.get("/websites");
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch websites:", error);
+    return []; // Return an empty array if the request fails
+  }
+};
+
+// Function to calculate uptime percentage
+export const calculateUptimePercentage = (websites) => {
+  const totalWebsites = websites.length;
+  const uptimeWebsites = websites.filter(website => website.status === "online").length;
+  return totalWebsites === 0 ? 0 : (uptimeWebsites / totalWebsites) * 100;
+};
+
+// Function to calculate average response time
+export const calculateAverageResponseTime = (websites) => {
+  const totalWebsites = websites.length;
+  if (totalWebsites === 0) return 0;
+
+  const totalResponseTime = websites.reduce((acc, website) => acc + website.responseTime, 0);
+  return totalResponseTime / totalWebsites;
+};
 
 export default api;

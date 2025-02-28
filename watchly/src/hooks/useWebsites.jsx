@@ -1,28 +1,28 @@
 import { useState, useEffect } from "react";
-import { getWebsites } from "../services/api";
+import { fetchWebsites } from "../services/api";
 
-const useWebsites = () => {
+export default function useWebsites() {
   const [websites, setWebsites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchWebsites = async () => {
+  const fetchWebsitesData = async () => {
+    setLoading(true);
     try {
-      const response = await getWebsites();
-      setWebsites(response.data);
-    } catch (error) {
-      console.error("Error fetching websites:", error);
-      setError("Failed to fetch websites. Please try again.");
+      const data = await fetchWebsites();
+      setWebsites(data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching websites:", err);
+      setError("Failed to load websites. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchWebsites();
+    fetchWebsitesData();
   }, []);
 
-  return { websites, loading, error, fetchWebsites };
-};
-
-export default useWebsites;
+  return { websites, loading, error, fetchWebsites: fetchWebsitesData };
+}

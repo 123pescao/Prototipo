@@ -9,9 +9,10 @@ import {
   fetchWebsiteStatus,
   calculateUptimePercentage,
   calculateAverageResponseTime,
-} from "./utils";
+  addWebsite as apiAddWebsite,
+  deleteWebsite
+} from "../services/api";
 import { Globe, Activity, Clock, AlertTriangle } from "lucide-react";
-import { addWebsite, deleteWebsite } from "../services/api";
 import useWebsites from "../hooks/useWebsites";
 
 export default function WebsiteMonitorUI() {
@@ -21,12 +22,13 @@ export default function WebsiteMonitorUI() {
   const [loading, setLoading] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
-
+  const [formError, setFormError] = useState("");
+  
   // Periodically update website statuses
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const updatedWebsites = await Promise.all(
+        await Promise.all(
           websites.map(async (site) => {
             const statusData = await fetchWebsiteStatus(site.url);
             return { ...site, ...statusData };
@@ -37,21 +39,21 @@ export default function WebsiteMonitorUI() {
         console.error("Failed to update website statuses:", error);
       }
     }, 10000);
-
     return () => clearInterval(interval);
   }, [websites, fetchWebsites]);
-
+  
   // Handle URL input change
   const handleInputChange = (e) => {
     setUrl(e.target.value);
+    setFormError("");
   };
-
+  
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await addWebsite();
+    await handleAddWebsite();
   };
-
+  
   // Validate URL
   const isValidUrl = (url) => {
     try {
@@ -61,28 +63,30 @@ export default function WebsiteMonitorUI() {
       return false;
     }
   };
-
+  
   // Add a new website
-  const addWebsite = async () => {
+  const handleAddWebsite = async () => {
     if (!isValidUrl(url)) {
-      console.error("Invalid URL. Please enter a valid URL (e.g., https://example.com).");
+      setFormError("Invalid URL. Please enter a valid URL (e.g., https://example.com).");
       return;
     }
-
+    
     if (url.trim() !== "") {
       setLoading(true);
       try {
-        const response = await addWebsite({ url, name: url, frequency: 5 });
+        await apiAddWebsite({ url, name: url, frequency: 5 });
         fetchWebsites(); // Refresh the list of websites
         setUrl("");
+        setFormError("");
       } catch (error) {
         console.error("Failed to add website:", error);
+        setFormError("Failed to add website. Please try again.");
       } finally {
         setLoading(false);
       }
     }
   };
-
+  
   // Remove a website
   const removeWebsite = async (websiteId) => {
     try {
@@ -92,7 +96,7 @@ export default function WebsiteMonitorUI() {
       console.error("Failed to remove website:", error);
     }
   };
-
+  
   // Stats for the dashboard
   const stats = [
     {
@@ -120,27 +124,24 @@ export default function WebsiteMonitorUI() {
       color: "text-yellow-500",
     },
   ];
-
+  
   // Loading state for initial fetch
   if (initialLoading) {
     return <div className="text-white">Loading websites...</div>;
   }
-
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-800/5 via-transparent to-transparent"></div>
-
       {/* Header */}
       <Header
         showNotifications={showNotifications}
         setShowNotifications={setShowNotifications}
         notifications={notifications}
       />
-
       <main className="container mx-auto px-4 py-8 relative z-10">
         {/* Stats Grid */}
         <StatsGrid stats={stats} />
-
         {/* Add Website Form */}
         <form onSubmit={handleSubmit} className="mb-8">
           <div className="flex space-x-4">
@@ -160,9 +161,8 @@ export default function WebsiteMonitorUI() {
               {loading ? "Adding..." : "Add Website"}
             </Button>
           </div>
-          {error && <p className="text-red-500 mt-2">{error}</p>}
+          {formError && <p className="text-red-500 mt-2">{formError}</p>}
         </form>
-
         {/* Websites Table */}
         <Card className="bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
           <WebsitesTable websites={websites} removeWebsite={removeWebsite} />
