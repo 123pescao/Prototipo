@@ -6,7 +6,7 @@ from app.models import User, Website, Metric, Alert
 from app.monitor import start_monitoring
 
 app = create_app()
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 migrate = Migrate(app, db)
 
 
