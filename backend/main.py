@@ -9,6 +9,10 @@ app = create_app()
 CORS(app, resources={r"/*": {"origins": "*"}})
 migrate = Migrate(app, db)
 
+#Add a root route to prevent 404 on `/`
+@app.route("/")
+def root():
+    return {"message": "API is running!"}, 200
 
 if __name__ == '__main__':
     import os
