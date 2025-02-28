@@ -7,50 +7,57 @@ import "./index.css";
 
 function App() {
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Check if user is authenticated from localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem("userToken");
+    const savedUser = localStorage.getItem("token");
     if (savedUser) {
-      setUser(true);
+      setUser(true); // User is authenticated
+    } else {
+      setUser(false); // User is not authenticated
     }
-    setIsLoading(false); // Set loading to false after checking authentication
+    setIsLoading(false);
   }, []);
 
+  // Handle login and set token
   const handleLogin = () => {
-    localStorage.setItem("userToken", "authenticated");
-    setUser(true);
-    navigate("/dashboard"); // Navigate to the dashboard after login
+    localStorage.setItem("token", "authenticated"); // Store token
+    setUser(true); // Update user state to authenticated
+    navigate("/dashboard"); // Redirect to dashboard after login
   };
 
+  // Handle logout and remove token
   const handleLogout = () => {
-    localStorage.removeItem("userToken");
-    setUser(false);
-    navigate("/login"); // Redirect to login after logout
+    localStorage.removeItem("token"); // Remove token
+    setUser(false); // Update user state to not authenticated
+    navigate("/login"); // Redirect to login page
   };
 
+  // Show loading state while checking authentication
   if (isLoading) {
-    return <div>Loading...</div>; // Show a loading spinner or message
+    return <div className="flex justify-center items-center h-screen text-lg">Loading...</div>;
   }
 
   return (
     <div className="App min-h-screen">
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        {/* Landing page or WebsiteMonitorUI based on user authentication */}
         <Route
-          path="/login"
-          element={<Login onLogin={handleLogin} />} // Handle both login and sign-up
+          path="/"
+          element={user ? <WebsiteMonitorUI onLogout={handleLogout} /> : <LandingPage />}
         />
+        {/* Login page route */}
+        <Route path="/login" element={<Login onLogin={handleLogin} />} />
+        {/* Dashboard route, protected by user authentication */}
         <Route
           path="/dashboard"
-          element={
-            user ? (
-              <WebsiteMonitorUI onLogout={handleLogout} />
-            ) : (
-              <Login onLogin={handleLogin} />
-            )
-          }
+          element={user ? (
+            <WebsiteMonitorUI onLogout={handleLogout} />
+          ) : (
+            <Login onLogin={handleLogin} />
+          )}
         />
       </Routes>
     </div>

@@ -7,37 +7,20 @@ import StatsGrid from "./StatsGrid";
 import WebsitesTable from "./WebsitesTable";
 import {
   fetchWebsiteStatus,
-  fetchWebsites,
   calculateUptimePercentage,
   calculateAverageResponseTime,
 } from "./utils";
 import { Globe, Activity, Clock, AlertTriangle } from "lucide-react";
+import { addWebsite, deleteWebsite } from "../services/api";
+import useWebsites from "../hooks/useWebsites";
 
 export default function WebsiteMonitorUI() {
   const navigate = useNavigate();
-  const [websites, setWebsites] = useState([]);
+  const { websites, loading: initialLoading, error, fetchWebsites } = useWebsites();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
-
-  // Fetch websites on component mount
-  useEffect(() => {
-    const loadWebsites = async () => {
-      try {
-        const data = await fetchWebsites();
-        setWebsites(data);
-      } catch (error) {
-        console.error("Failed to load websites:", error);
-        setError("Failed to load websites. Please try again.");
-      } finally {
-        setInitialLoading(false);
-      }
-    };
-    loadWebsites();
-  }, []);
 
   // Periodically update website statuses
   useEffect(() => {
@@ -49,20 +32,18 @@ export default function WebsiteMonitorUI() {
             return { ...site, ...statusData };
           })
         );
-        setWebsites(updatedWebsites);
+        fetchWebsites(); // Refresh the list of websites
       } catch (error) {
         console.error("Failed to update website statuses:", error);
-        setError("Failed to update website statuses. Please refresh the page.");
       }
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [websites]);
+  }, [websites, fetchWebsites]);
 
   // Handle URL input change
   const handleInputChange = (e) => {
     setUrl(e.target.value);
-    setError(null); // Clear error when user types
   };
 
   // Handle form submission
@@ -84,41 +65,18 @@ export default function WebsiteMonitorUI() {
   // Add a new website
   const addWebsite = async () => {
     if (!isValidUrl(url)) {
-      setError("Invalid URL. Please enter a valid URL (e.g., https://example.com).");
+      console.error("Invalid URL. Please enter a valid URL (e.g., https://example.com).");
       return;
     }
 
     if (url.trim() !== "") {
       setLoading(true);
-      setError(null);
       try {
-        console.log("Adding website:", url);
-
-        const response = await fetch("http://backend:5000/websites", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ url, name: url, frequency: 5 }),
-        });
-
-        console.log("Response status:", response.status);
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error("Error response:", errorData);
-          throw new Error(errorData.message || "Failed to add website");
-        }
-
-        const newWebsite = await response.json();
-        console.log("New website added:", newWebsite);
-
-        setWebsites((prev) => [...prev, newWebsite]);
+        const response = await addWebsite({ url, name: url, frequency: 5 });
+        fetchWebsites(); // Refresh the list of websites
         setUrl("");
       } catch (error) {
         console.error("Failed to add website:", error);
-        setError("Failed to add website. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -128,16 +86,10 @@ export default function WebsiteMonitorUI() {
   // Remove a website
   const removeWebsite = async (websiteId) => {
     try {
-      await fetch(`http://backend:5000/websites/${websiteId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      setWebsites((prev) => prev.filter((site) => site.id !== websiteId));
+      await deleteWebsite(websiteId);
+      fetchWebsites(); // Refresh the list of websites
     } catch (error) {
       console.error("Failed to remove website:", error);
-      setError("Failed to remove website. Please try again.");
     }
   };
 
