@@ -1,9 +1,26 @@
-#Database Models Schema
+#Datab# Database Models Schema
 from flask_sqlalchemy import SQLAlchemy
-from app import db
+from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.exc import OperationalError
+import time
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from app import db
 
+# Database Session Handler (Ensures Neon Wakes Up)
+def get_db():
+    """Handles database session with auto-retry for Neon PostgreSQL wake-up."""
+    from app import SessionLocal
+    for _ in range(3):  # Retry up to 3 times
+        try:
+            session = SessionLocal()  # ✅ Use `session`, not `db`
+            yield session
+            break  # Exit loop if successful
+        except OperationalError:
+            print("🚀 Database is waking up... retrying in 5 seconds...")
+            time.sleep(5)  # Wait for Neon to wake up
+        finally:
+            session.close()  # ✅ Close session properly after use
 
 #User Model
 class User(db.Model):
