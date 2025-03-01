@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchWebsites } from "../services/api";
+import { getWebsites } from "../services/api";
 
 export default function useWebsites() {
   const [websites, setWebsites] = useState([]);
@@ -9,7 +9,7 @@ export default function useWebsites() {
   const fetchWebsitesData = async () => {
     setLoading(true);
     try {
-      const data = await fetchWebsites();
+      const data = await getWebsites(); // Use getWebsites() from the backend
       setWebsites(data);
       setError(null);
     } catch (err) {
