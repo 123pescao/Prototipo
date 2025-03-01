@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "https://prototipo-production-0f57.up.railway.app";
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "https://watchly-worker.joel-caban2017.workers.dev";
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -39,41 +39,68 @@ api.interceptors.response.use(
 );
 
 // User Authentication
-export const registerUser = (userData) => api.post("/auth/register", userData);
-export const loginUser = (userData) => api.post("/auth/login", userData);
+export const registerUser = (userData) => api.post("/api/auth/register", userData);
+export const loginUser = (userData) => api.post("/api/auth/login", userData);
 
 // Websites
-export const getWebsites = () => api.get("/websites");
-export const addWebsite = (websiteData) => api.post("/websites/add", websiteData);
-export const deleteWebsite = (websiteId) => api.delete(`/websites/${websiteId}`);
+export const getWebsites = () => api.get("/api/websites/"); // Correct API for fetching websites
+export const deleteWebsite = (websiteId) => api.delete("/api/websites/delete", { data: { id: websiteId } }); // Ensure correct data format
+
+// Add a website and start monitoring it
+export const addWebsite = async (websiteData) => {
+  try {
+    const response = await api.post("/api/websites/add", websiteData); // API to add a website
+    const website = response.data;
+    const statusData = await fetchWebsiteStatus(website.url);
+    const metrics = await getMetrics(website.id); // Fetching metrics after adding website
+    return {
+      ...website,
+      status: statusData.status,
+      uptime: metrics.uptime,
+      responseTime: metrics.responseTime,
+    };
+  } catch (error) {
+    console.error("Error adding website:", error);
+    throw error;
+  }
+};
 
 // Metrics
-export const getMetrics = (websiteId) => api.get(`/metrics/?website_id=${websiteId}`);
-export const addMetric = (metricData) => api.post("/metrics/add", metricData);
-
-// Alerts
-export const getAlerts = (websiteId) => api.get(`/alerts/?website_id=${websiteId}`);
-export const updateAlert = (alertId, status) => api.patch(`/alerts/${alertId}`, { status });
+export const getMetrics = (websiteId) => api.get(`/api/metrics/`, { params: { websiteId } }); // Correct metrics API
+export const addMetric = (metricData) => api.post("/api/metrics/add", metricData);
 
 // Fetch Website Status
 export const fetchWebsiteStatus = async (url) => {
   try {
-    const response = await api.get(`/status?url=${encodeURIComponent(url)}`);
+    const response = await api.get(`/api/status?url=${encodeURIComponent(url)}`);
     return response.data;
   } catch (error) {
     console.error("Failed to fetch website status:", error);
-    return { status: "offline" }; // Fallback status
+    return { status: "offline" };
   }
 };
 
 // Fetch all websites from the backend
 export const fetchWebsites = async () => {
   try {
-    const response = await api.get("/websites");
-    return response.data;
+    const response = await api.get("/api/websites/");
+    const websites = response.data;
+    const websitesWithMetrics = await Promise.all(
+      websites.map(async (website) => {
+        const statusData = await fetchWebsiteStatus(website.url);
+        const metrics = await getMetrics(website.id);
+        return {
+          ...website,
+          status: statusData.status,
+          uptime: metrics.uptime,
+          responseTime: metrics.responseTime,
+        };
+      })
+    );
+    return websitesWithMetrics;
   } catch (error) {
     console.error("Failed to fetch websites:", error);
-    return []; // Return an empty array if the request fails
+    return [];
   }
 };
 
@@ -88,7 +115,6 @@ export const calculateUptimePercentage = (websites) => {
 export const calculateAverageResponseTime = (websites) => {
   const totalWebsites = websites.length;
   if (totalWebsites === 0) return 0;
-
   const totalResponseTime = websites.reduce((acc, website) => acc + website.responseTime, 0);
   return totalResponseTime / totalWebsites;
 };
