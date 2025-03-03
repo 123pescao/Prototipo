@@ -16,36 +16,38 @@ const WebsitesTable = ({ websites, removeWebsite }) => {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {websites.map((website) => (
-          <TableRow key={website.id} className="border-white/10">
-            <TableCell className="text-white">{website.url}</TableCell>
-            <TableCell>
-              <span className={`flex items-center space-x-2 ${
-                website.status === "Up" ? "text-green-400" : "text-red-400"
-              }`}>
-                {website.status === "Up" ? (
-                  <CircleCheck className="w-4 h-4" />
-                ) : (
-                  <CircleX className="w-4 h-4" />
-                )}
-                <span>{website.status}</span>
-              </span>
-            </TableCell>
-            <TableCell className="text-white">{website.uptime}%</TableCell>
-            <TableCell className="text-white">{website.responseTime} ms</TableCell>
-            <TableCell>
-              <Button
-                onClick={() => removeWebsite(website.id)}
-                className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1 rounded"
-              >
-                Remove
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
+        {websites.map((website) => {
+          const isUp = website.uptime > 0;  // Convert uptime into boolean status
+          return (
+            <TableRow key={website.id} className="border-white/10">
+              <TableCell className="text-white">{website.url}</TableCell>
+              <TableCell>
+                <span className={`flex items-center space-x-2 ${
+                  isUp ? "text-green-400" : "text-red-400"
+                }`}>
+                  {isUp ? (
+                    <CircleCheck className="w-4 h-4" />
+                  ) : (
+                    <CircleX className="w-4 h-4" />
+                  )}
+                  <span>{isUp ? "Up" : "Down"}</span>
+                </span>
+              </TableCell>
+              <TableCell className="text-white">{website.uptime !== undefined ? `${website.uptime}%` : "0"}</TableCell>
+              <TableCell className="text-white">{website.response_time !== undefined ? `${website.response_time} ms` : "N/A"}</TableCell>
+              <TableCell>
+                <Button
+                  onClick={() => removeWebsite(website.id)}
+                  className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1 rounded"
+                >
+                  Remove
+                </Button>
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
 };
-
 export default WebsitesTable;

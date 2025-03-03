@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "https://prototipo-production-0f57.up.railway.app";
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://127.0.0.1:5000";
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -27,7 +27,7 @@ api.interceptors.response.use(
       console.error('API Error:', error.response.data);
       if (error.response.status === 401) {
         localStorage.setItem("redirectAfterLogin", window.location.pathname);
-        window.location.href = "/login"; // Redirect to login
+        window.location.href = "/login/"; // Redirect to login
       }
     } else if (error.request) {
       console.error('Network Error:', error.request);
@@ -39,38 +39,53 @@ api.interceptors.response.use(
 );
 
 // User Authentication
-export const registerUser = (userData) => api.post("/auth/register", userData);
-export const loginUser = (userData) => api.post("/auth/login", userData);
+export const registerUser = (userData) => api.post("/auth/register/", userData);
+export const loginUser = async (userData) => {
+  const response = await api.post("/auth/login/", userData);
+  if (response.data.access_token) {
+    localStorage.setItem("token", response.data.access_token);
+  }
+  return response;
+};
 
 // Websites
 export const getWebsites = () => api.get("/websites");
 export const addWebsite = (websiteData) => api.post("/websites/add", websiteData);
-export const deleteWebsite = (websiteId) => api.delete(`/websites/${websiteId}`);
+export const deleteWebsite = (websiteId) => api.delete(`/websites/delete/${websiteId}`);
 
 // Metrics
 export const getMetrics = (websiteId) => api.get(`/metrics/?website_id=${websiteId}`);
-export const addMetric = (metricData) => api.post("/metrics/add", metricData);
+export const addMetric = (metricData) => api.post("/metrics/add/", metricData);
 
 // Alerts
 export const getAlerts = (websiteId) => api.get(`/alerts/?website_id=${websiteId}`);
 export const updateAlert = (alertId, status) => api.patch(`/alerts/${alertId}`, { status });
 
-// Fetch Website Status
-export const fetchWebsiteStatus = async (url) => {
+// Fetch Website Metrics (Uptime & Response Time)
+export const fetchWebsiteMetrics = async (websiteId) => {
   try {
-    const response = await api.get(`/status?url=${encodeURIComponent(url)}`);
-    return response.data;
+    const response = await api.get(`/metrics/?website_id=${websiteId}`);
+
+    if (response.data.length > 0 && response.data[0].id != null) {
+      return response.data[0];  // Use latest metric
+    } else {
+      return { uptime: 0, response_time: "N/A" };  // Fallback for no data
+    }
   } catch (error) {
-    console.error("Failed to fetch website status:", error);
-    return { status: "offline" }; // Fallback status
+    console.error("API Error:", error.response?.data || error.message);
+    return { uptime: 0, response_time: "N/A" };  // Return default values on error
   }
 };
 
 // Fetch all websites from the backend
 export const fetchWebsites = async () => {
   try {
-    const response = await api.get("/websites");
-    return response.data;
+    const response = await api.get("/websites/");
+    return response.data.map(site => ({
+      ...site,
+      uptime: site.uptime ?? 0,  // Ensure uptime defaults to 0 if undefined
+      response_time: typeof site.response_time === "number" ? site.response_time : 0,  // Ensure response_time has fallback
+    }));
   } catch (error) {
     console.error("Failed to fetch websites:", error);
     return []; // Return an empty array if the request fails
@@ -79,9 +94,10 @@ export const fetchWebsites = async () => {
 
 // Function to calculate uptime percentage
 export const calculateUptimePercentage = (websites) => {
-  const totalWebsites = websites.length;
-  const uptimeWebsites = websites.filter(website => website.status === "online").length;
-  return totalWebsites === 0 ? 0 : (uptimeWebsites / totalWebsites) * 100;
+  if (!websites.length) return 0;
+
+  const totalUptime = websites.reduce((sum, site) => sum + (site.uptime || 0), 0);
+  return Math.round((totalUptime / websites.length) * 100) / 100; // Limit to 2 decimals
 };
 
 // Function to calculate average response time
@@ -94,3 +110,4 @@ export const calculateAverageResponseTime = (websites) => {
 };
 
 export default api;
+

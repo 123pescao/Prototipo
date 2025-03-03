@@ -1,15 +1,17 @@
 import os
 from flask import Flask, jsonify
+from sqlalchemy.pool import NullPool
 from flask_sqlalchemy import SQLAlchemy
 from flask_restx import Api
 from dotenv import load_dotenv
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from sqlalchemy.orm import sessionmaker
+from flask_cors import CORS
 
 
 load_dotenv() #Loading env
-db = SQLAlchemy()
+db = SQLAlchemy(engine_options={"pool_pre_ping": True, "poolclass": NullPool})
 migrate = Migrate()
 jwt = JWTManager()
 
@@ -39,12 +41,17 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "supersecretkey")
 
+    CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}},
+        supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+
     db.init_app(app)  # Bind SQLAlchemy to Flask app
     api.init_app(app)  # Initialize Flask-RESTx API
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # ✅ Initialize SessionLocal AFTER app & db are set up
+    # Initialize SessionLocal AFTER app & db are set up
     with app.app_context():
         from app.models import User, Website, Metric, Alert  # ✅ Ensure models are registered
         global SessionLocal
@@ -54,13 +61,15 @@ def create_app():
     from app.routes.websites import websites_ns
     from app.routes.metrics import metrics_ns
     from app.routes.auth import auth_ns
+    from app.routes.status import status_ns
 
-    api.add_namespace(alerts_ns, path="/api/alerts")  # Register namespaces
-    api.add_namespace(websites_ns, path="/api/websites")
-    api.add_namespace(metrics_ns, path="/api/metrics")
-    api.add_namespace(auth_ns, path="/api/auth")
+    api.add_namespace(alerts_ns, path="/alerts")  # Register namespaces
+    api.add_namespace(websites_ns, path="/websites")
+    api.add_namespace(metrics_ns, path="/metrics")
+    api.add_namespace(auth_ns, path="/auth")
+    api.add_namespace(status_ns, path="/status")
 
-    @app.route("/api/status", methods=['GET'])
+    @app.route("/status", methods=['GET'])
     def status():
         return jsonify({"message": "Server is running"}), 200
 

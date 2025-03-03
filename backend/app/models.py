@@ -33,7 +33,7 @@ class User(db.Model):
     websites = db.relationship('Website', backref='user', cascade="all, delete", passive_deletes=True, lazy=True)
     #set hashed password
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method="pbkdf2:sha256")
     #check if given password matches stored hash
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)

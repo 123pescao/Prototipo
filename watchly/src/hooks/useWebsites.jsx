@@ -10,7 +10,13 @@ export default function useWebsites() {
     setLoading(true);
     try {
       const data = await fetchWebsites();
-      setWebsites(data);
+      console.log("Fetched websites from API:", data);  // Debug API response
+
+      setWebsites(() => {
+        console.log("Updating websites state with:", data);
+        return [...data]; // Ensures React re-renders
+      });
+
       setError(null);
     } catch (err) {
       console.error("Error fetching websites:", err);
@@ -24,5 +30,5 @@ export default function useWebsites() {
     fetchWebsitesData();
   }, []);
 
-  return { websites, loading, error, fetchWebsites: fetchWebsitesData };
+  return { websites, setWebsites, loading, error, fetchWebsites: fetchWebsitesData };
 }

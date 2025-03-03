@@ -44,7 +44,13 @@ class GetMetrics(Resource):
         metrics = query.all()
 
         if not metrics:
-            return {"message": "No data found for this website"}, 404
+            return [{
+                "id": None,
+                "website_id": website_id,
+                "uptime": 0,  # Default uptime
+                "response_time": 0,  # Default response time
+                "timestamp": None  # No timestamp available
+            }], 200
 
         return [{
             "id": metric.id,

@@ -42,30 +42,28 @@ delete_website_model = websites_ns.model(
     {"website_id": fields.Integer(required=True, description="Website ID")},
 )
 
-#Add Website-
-@websites_ns.route("/add")
+@websites_ns.route("/add", methods=["POST", "OPTIONS"])
 class AddWebsite(Resource):
     @websites_ns.expect(add_website_model)
     @websites_ns.response(201, "Website Added Successfully!", website_model)
     @websites_ns.response(400, "Missing Required Fields")
-    @token_required
+    @token_required  # ✅ Keep this only on `post`, not `options`
     def post(self, current_user):
         """Add a new website for monitoring"""
-        from app.models import Website  # Import here to avoid circular dependencies
+        from app.models import Website  # Avoid circular imports
 
         data = request.get_json()
         url = data.get("url")
         name = data.get("name")
         frequency = data.get("frequency", 5)
 
-        # Validate Required Fields
+        #Validate Required Fields
         if not url or not name:
             return {"error": "Missing required fields"}, 400
 
         # Create new Website object
         new_website = Website(user_id=current_user.id, url=url, name=name, frequency=frequency)
 
-        # Add website to database
         db.session.add(new_website)
         db.session.commit()
 
@@ -80,32 +78,71 @@ class AddWebsite(Resource):
             },
         }, 201
 
+    #Allow OPTIONS method for CORS preflight requests (NO authentication required)
+    def options(self):
+        return {}, 200
 
-#Fetch Website
+
+#Fetch and Add Websites
 @websites_ns.route("/")
 class GetWebsites(Resource):
     @websites_ns.response(200, "Websites Retrieved Successfully!", [website_model])
     @token_required
     def get(self, current_user):
         """Retrieve all monitored websites for the user"""
-        from app.models import Website
+        from app.models import Website, Metric
 
         # Query user's websites
         websites = Website.query.filter_by(user_id=current_user.id).all()
 
         # Serialize data
-        websites_data = [
-            {
+        websites_data = []
+        for website in websites:
+            # Fetch latest metric for each website
+            latest_metric = Metric.query.filter_by(website_id=website.id).order_by(Metric.timestamp.desc()).first()
+
+            websites_data.append({
                 "id": website.id,
                 "url": website.url,
                 "name": website.name,
                 "frequency": website.frequency,
-            }
-            for website in websites
-        ]
+                "uptime": latest_metric.uptime if latest_metric else 0,
+                "response_time": latest_metric.response_time if latest_metric else "N/A",
+            })
 
         return websites_data, 200
 
+    @websites_ns.response(201, "Website Created Successfully!", website_model)
+    @websites_ns.response(400, "Invalid Request Data")
+    @token_required
+    def post(self, current_user):
+        """Add a new website for the authenticated user"""
+        from app import db
+        from app.models import Website
+        from flask import request
+
+        data = request.get_json()
+
+        if not data or "name" not in data or "url" not in data or "frequency" not in data:
+            return {"error": "Missing required fields (name, url, frequency)"}, 400
+
+        # Create new website entry
+        new_website = Website(
+            user_id=current_user.id,  # Ensure website is linked to the logged-in user
+            name=data["name"],
+            url=data["url"],
+            frequency=data["frequency"]
+        )
+
+        db.session.add(new_website)
+        db.session.commit()
+
+        return {
+            "id": new_website.id,
+            "url": new_website.url,
+            "name": new_website.name,
+            "frequency": new_website.frequency,
+        }, 201
 
 #Update Website
 @websites_ns.route("/update")
@@ -156,23 +193,15 @@ class UpdateWebsite(Resource):
         }, 200
 
 
-# Delete Website
-@websites_ns.route("/delete")
+## Delete Website (RESTful DELETE)
+@websites_ns.route("/delete/<int:website_id>", methods=["OPTIONS", "DELETE"])
 class DeleteWebsite(Resource):
-    @websites_ns.expect(delete_website_model)
     @websites_ns.response(200, "Website Deleted Successfully!")
     @websites_ns.response(404, "Website Not Found or Unauthorized")
     @token_required
-    def delete(self, current_user):
+    def delete(self, current_user, website_id):
         """Delete a monitored website"""
         from app.models import Website, Metric, Alert  # Import here to avoid circular dependencies
-
-        data = request.get_json()
-        website_id = data.get("website_id")
-
-        # Validate website_id is provided
-        if not website_id:
-            return {"error": "Website ID is required"}, 400
 
         # Query database for website
         website = Website.query.filter_by(id=website_id, user_id=current_user.id).first()
@@ -188,3 +217,7 @@ class DeleteWebsite(Resource):
         db.session.commit()
 
         return {"message": "Website deleted successfully!"}, 200
+
+    def options(self, website_id):
+        """Handle CORS preflight for DELETE"""
+        return {}, 200

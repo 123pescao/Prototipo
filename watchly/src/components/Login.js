@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Eye, Monitor } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // Import useNavigate for routing
+import api from "..//services/api";
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -34,22 +35,25 @@ export default function Login({ onLogin }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
-    setTimeout(() => {
-      const validEmail = "admin@example.com";
-      const validPassword = "password123";
+    try {
+      const response = await api.post("/auth/login", { email, password});
 
-      if (email === validEmail && password === validPassword) {
-        if (onLogin) onLogin({ email });
+      if (response.data.access_token) {
+        localStorage.setItem("token", response.data.access_token);
+        navigate("/dashboard");
       } else {
-        setError("Invalid email or password");
+          setError("Invalid email or password");
       }
-      setIsLoading(false);
-    }, 1000);
+    } catch (error) {
+        setError("Login failed. Check your credentials.");
+    }
+
+    setIsLoading(false);
   };
 
   return (
@@ -81,21 +85,27 @@ export default function Login({ onLogin }) {
               <div>
                 <input
                   type="email"
+                  id="email"
+                  name="email"
                   placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-white focus:border-transparent outline-none transition-all duration-200"
                   required
+                  autoComplete="email"
                 />
               </div>
               <div>
                 <input
                   type="password"
+                  id="password"
+                  name="password"
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-white focus:border-transparent outline-none transition-all duration-200"
                   required
+                  autoComplete="current-password"
                 />
               </div>
               <button

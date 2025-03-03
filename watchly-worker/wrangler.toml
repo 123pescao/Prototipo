@@ -1,0 +1,5 @@
+name = "watchly-worker"
+type = "javascript"
+account_id = "f51a0dfefbee1d093b34b24ff734cc81"
+workers_dev = true
+main = "index.js"

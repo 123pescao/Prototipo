@@ -1,0 +1,15 @@
+2025-03-03 01:11:30,022 - DEBUG - /etc/timezone found, contents:
+ America/Puerto_Rico
+
+2025-03-03 01:11:30,023 - DEBUG - /etc/localtime found
+2025-03-03 01:11:30,023 - DEBUG - 2 found:
+ {'/etc/timezone': 'America/Puerto_Rico', '/etc/localtime is a symlink to': 'America/Puerto_Rico'}
+2025-03-03 01:11:30,024 - WARNING - /etc/timezone is deprecated on Debian, and no longer reliable. Ignoring.
+2025-03-03 01:11:30,161 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-03-03 01:11:30,162 - INFO - Added job "run_monitoring_task" to job store "default"
+2025-03-03 01:11:30,162 - INFO - Scheduler started
+2025-03-03 01:11:30,163 - DEBUG - Looking for jobs to run
+2025-03-03 01:11:30,163 - DEBUG - Next wakeup is due at 2025-03-03 01:16:30.161785-04:00 (in 299.998633 seconds)
+2025-03-03 01:11:30,163 - INFO - Scheduler has been shut down
+2025-03-03 01:11:30,163 - DEBUG - Looking for jobs to run
+2025-03-03 01:11:30,163 - DEBUG - No jobs; waiting until a job is added

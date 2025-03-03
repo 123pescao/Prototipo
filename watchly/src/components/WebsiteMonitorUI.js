@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
@@ -6,7 +6,7 @@ import Header from "./Header";
 import StatsGrid from "./StatsGrid";
 import WebsitesTable from "./WebsitesTable";
 import {
-  fetchWebsiteStatus,
+  fetchWebsiteMetrics,
   calculateUptimePercentage,
   calculateAverageResponseTime,
   addWebsite as apiAddWebsite,
@@ -17,44 +17,88 @@ import useWebsites from "../hooks/useWebsites";
 
 export default function WebsiteMonitorUI() {
   const navigate = useNavigate();
-  const { websites, loading: initialLoading, error, fetchWebsites } = useWebsites();
+  const { websites, setWebsites, loading: initialLoading, error, fetchWebsites } = useWebsites();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [formError, setFormError] = useState("");
-  
-  // Periodically update website statuses
+  const latestWebsites = useRef([]);
+  const [statusLoading, setStatusLoading] = useState(false);
+
+  // Fetch websites only once when component mounts
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        await Promise.all(
-          websites.map(async (site) => {
-            const statusData = await fetchWebsiteStatus(site.url);
-            return { ...site, ...statusData };
-          })
-        );
-        fetchWebsites(); // Refresh the list of websites
-      } catch (error) {
-        console.error("Failed to update website statuses:", error);
+    if (websites.length === 0) {
+      fetchWebsites(); // Ensures we fetch websites once
+    }
+  }, []); // Empty dependency array ensures this runs only once
+
+  // Fetch website statuses every 10s without triggering infinite re-renders
+  const fetchStatuses = useCallback(async () => {
+    if (websites.length === 0) return;
+    setStatusLoading(true);
+    try {
+      const updatedWebsites = await Promise.all(
+        websites.map(async (site) => {
+          if (!site.id) {
+            console.error(`Skipping site: Missing ID`, site);
+            return { ...site, uptime: 0, response_time: "N/A"};
+          }
+
+          try {
+            const metricsData = await fetchWebsiteMetrics(site.id);
+            console.log(`Metrics for ${site.url}:`, metricsData);
+
+            const isDown = metricsData?.uptime === 0;
+
+            return {
+              ...site,
+              uptime: metricsData?.uptime || 0, // Ensure uptime is valid
+              response_time: metricsData?.response_time ?? "N/A",
+              isDown,
+            };
+          } catch (err) {
+            console.error(`Failed to fetch metrics for ${site.url}:`, err);
+            return { ...site, uptime: 0, response_time: "N/A" }; //  Graceful fallback
+          }
+        })
+      );
+
+      console.log("Updated Websites with Metrics:", updatedWebsites);
+
+       // Update state safely
+      if (JSON.stringify(updatedWebsites) !== JSON.stringify(websites)) {
+        latestWebsites.current = updatedWebsites;
+        setWebsites([...updatedWebsites]);
       }
+
+    } catch (error) {
+      console.error("Failed to update website statuses:", error);
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [websites, setWebsites]);
+
+  useEffect(() => {
+    if (websites.length === 0) return;  // Prevent unnecessary API calls
+
+    const interval = setInterval(() => {
+      fetchStatuses();
     }, 10000);
-    return () => clearInterval(interval);
-  }, [websites, fetchWebsites]);
-  
-  // Handle URL input change
+
+    return () => clearInterval(interval);  // Cleanup interval on unmount or state change
+  }, [websites, fetchStatuses])
+
   const handleInputChange = (e) => {
     setUrl(e.target.value);
     setFormError("");
   };
-  
-  // Handle form submission
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     await handleAddWebsite();
   };
-  
-  // Validate URL
+
   const isValidUrl = (url) => {
     try {
       new URL(url);
@@ -63,19 +107,18 @@ export default function WebsiteMonitorUI() {
       return false;
     }
   };
-  
-  // Add a new website
+
   const handleAddWebsite = async () => {
     if (!isValidUrl(url)) {
       setFormError("Invalid URL. Please enter a valid URL (e.g., https://example.com).");
       return;
     }
-    
+
     if (url.trim() !== "") {
       setLoading(true);
       try {
         await apiAddWebsite({ url, name: url, frequency: 5 });
-        fetchWebsites(); // Refresh the list of websites
+        fetchWebsites();
         setUrl("");
         setFormError("");
       } catch (error) {
@@ -86,18 +129,16 @@ export default function WebsiteMonitorUI() {
       }
     }
   };
-  
-  // Remove a website
+
   const removeWebsite = async (websiteId) => {
     try {
       await deleteWebsite(websiteId);
-      fetchWebsites(); // Refresh the list of websites
+      fetchWebsites();
     } catch (error) {
       console.error("Failed to remove website:", error);
     }
   };
-  
-  // Stats for the dashboard
+
   const stats = [
     {
       icon: Globe,
@@ -108,13 +149,20 @@ export default function WebsiteMonitorUI() {
     {
       icon: Activity,
       title: "Uptime",
-      value: `${calculateUptimePercentage(websites)}%`,
+      value: websites.length > 0
+        ? (latestWebsites.current.reduce((sum, site) => sum + site.uptime, 0) / websites.length).toFixed(1) 
+        : "0.0",
       color: "text-green-500",
     },
     {
       icon: Clock,
       title: "Avg Response Time",
-      value: `${calculateAverageResponseTime(websites)} ms`,
+      value: websites.length > 0
+        ? (latestWebsites.current
+            .filter(site => typeof site.response_time === "number")
+            .reduce((sum, site) => sum + site.response_time, 0) / websites.length
+          ).toFixed(1)
+        : "0.0",
       color: "text-purple-500",
     },
     {
@@ -124,25 +172,17 @@ export default function WebsiteMonitorUI() {
       color: "text-yellow-500",
     },
   ];
-  
-  // Loading state for initial fetch
+
   if (initialLoading) {
-    return <div className="text-white">Loading websites...</div>;
+    return <div className="text-white text-center mt-20">Loading websites...</div>;
   }
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-800/5 via-transparent to-transparent"></div>
-      {/* Header */}
-      <Header
-        showNotifications={showNotifications}
-        setShowNotifications={setShowNotifications}
-        notifications={notifications}
-      />
+      <Header showNotifications={showNotifications} setShowNotifications={setShowNotifications} notifications={notifications} />
       <main className="container mx-auto px-4 py-8 relative z-10">
-        {/* Stats Grid */}
         <StatsGrid stats={stats} />
-        {/* Add Website Form */}
         <form onSubmit={handleSubmit} className="mb-8">
           <div className="flex space-x-4">
             <input
@@ -153,17 +193,12 @@ export default function WebsiteMonitorUI() {
               onChange={handleInputChange}
               required
             />
-            <Button
-              type="submit"
-              disabled={loading}
-              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
+            <Button type="submit" disabled={loading} className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors">
               {loading ? "Adding..." : "Add Website"}
             </Button>
           </div>
           {formError && <p className="text-red-500 mt-2">{formError}</p>}
         </form>
-        {/* Websites Table */}
         <Card className="bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
           <WebsitesTable websites={websites} removeWebsite={removeWebsite} />
         </Card>

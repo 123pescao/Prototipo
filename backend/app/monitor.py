@@ -8,6 +8,12 @@ from datetime import datetime
 from app.utils.email_utils import send_email_async
 from sqlalchemy.orm import sessionmaker
 from app.utils.logger import logger
+import time
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 scheduler = BackgroundScheduler()
 
@@ -129,10 +135,18 @@ def run_monitoring_task(app):
 
 def start_monitoring(app):
     """Starts the APScheduler job for monitoring websites at intervals."""
-    scheduler.add_job(run_monitoring_task, "interval", minutes=5, args=[app])
+    print("✅ Starting monitoring service...")  # Debugging print
+    logger.info("✅ Starting monitoring service...")  # Log startup
+
+    scheduler.add_job(run_monitoring_task, "interval", seconds=30, args=[app])
     scheduler.start()
-    print("✅ Monitoring Services Started...")
-    atexit.register(lambda: scheduler.shutdown())
+
+
+    print("✅ Scheduler is running. Keeping process alive...")
+
+    while True:
+        time.sleep(60)
+
 
 if __name__ == "__main__":
     from app import create_app

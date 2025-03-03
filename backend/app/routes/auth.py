@@ -1,10 +1,10 @@
+from datetime import datetime, timedelta
 from flask_restx import Namespace, Resource, fields
 from functools import wraps
 from flask import jsonify, request
 from app.models import User, Website, Metric, Alert
 from app import db
 import jwt
-from datetime import datetime, timedelta
 from app.config import SECRET_KEY
 from app.utils.logger import logger
 
@@ -128,7 +128,7 @@ class RegisterUser(Resource):
             }
         }, 201
 
-#Route for user login
+# Route for user login
 @auth_ns.route('/login')
 class LoginUser(Resource):
     @auth_ns.expect(login_model)
@@ -138,7 +138,8 @@ class LoginUser(Resource):
     def post(self):
         """User Login"""
         data = request.get_json()
-        #Extract and validate
+
+        # Extract and validate
         email = data.get('email')
         password = data.get('password')
 
@@ -146,29 +147,33 @@ class LoginUser(Resource):
             logger.warning("Login attempt with missing credentials")
             return {"error": "Missing email or password"}, 400
 
-        #Fetch user by email
+        # Fetch user by email
         user = User.query.filter_by(email=email).first()
-        if not user or not user.check_password(password):
-            logger.warning(f"Failed login attempt for {email}")
+
+        if not user:
+            logger.warning(f"DEBUG: No user found with email {email}")
             return {"error": "Invalid email or password"}, 401
 
-        #Generate JWT Token
-        token = jwt.encode(
-            {
-                "user_id": user.id,
-                "exp": datetime.utcnow() + timedelta(hours=1)
-            },
-            SECRET_KEY,
-            algorithm="HS256"
-        )
+        # Debugging: Print password hash and entered password
+        logger.debug(f"DEBUG: Password hash from DB: {user.password_hash}")
+        logger.debug(f"DEBUG: Entered password: {password}")
+
+        if not user.check_password(password):
+            logger.warning(f"DEBUG: Password mismatch for {email}")
+            return {"error": "Invalid email or password"}, 401
+
+        # Generate JWT Token (Valid for 1 week)
+        access_token = jwt.encode({
+            "user_id": user.id,
+            "sub": str(user.id),
+            "exp": datetime.utcnow() + timedelta(days=7)  # 7 days
+        }, SECRET_KEY, algorithm="HS256")
 
         logger.info(f"User {email} logged in successfully.")
         return {
             "message": "Login successful!",
-            "token": token
+            "access_token": access_token
         }, 200
-
-
 
 #Retrieve User profile
 @auth_ns.route('/profile')
