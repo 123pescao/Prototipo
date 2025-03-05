@@ -1,4 +1,4 @@
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import LandingPage from "./components/LandingPage";
 import Login from "./components/Login";
@@ -12,14 +12,11 @@ function App() {
 
   // Check if user is authenticated from localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem("token");
-    if (savedUser) {
-      setUser(true); // User is authenticated
-    } else {
-      setUser(false); // User is not authenticated
-    }
+    const savedToken = localStorage.getItem("token");
+    console.log("Checking token in localStorage:", savedToken);  // Debugging
+    setUser(!!savedToken);  // Set to true if token exists
     setIsLoading(false);
-  }, []);
+}, []);
 
   // Handle login and set token
   const handleLogin = () => {
@@ -49,12 +46,14 @@ function App() {
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
         {/* Dashboard route, accessible only if user is authenticated */}
         <Route
-          path="/dashboard"
-          element={user ? (
-            <WebsiteMonitorUI onLogout={handleLogout} />
-          ) : (
-            <Login onLogin={handleLogin} />
-          )}
+            path="/dashboard"
+            element={
+                user ? (
+                    <WebsiteMonitorUI onLogout={handleLogout} />
+                ) : (
+                    <Navigate to="/login" replace />
+                )
+            }
         />
       </Routes>
     </div>

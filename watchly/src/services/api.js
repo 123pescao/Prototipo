@@ -11,6 +11,7 @@ const api = axios.create({
 // Token Interceptor to attach token to API requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
+  console.log("Attaching token to request", token);
   if (token) {
     config.headers["Authorization"] = `Bearer ${token}`;
   }
@@ -39,9 +40,9 @@ api.interceptors.response.use(
 );
 
 // User Authentication
-export const registerUser = (userData) => api.post("/auth/register/", userData);
+export const registerUser = (userData) => api.post("/auth/register", userData);
 export const loginUser = async (userData) => {
-  const response = await api.post("/auth/login/", userData);
+  const response = await api.post("/auth/login", userData);
   if (response.data.access_token) {
     localStorage.setItem("token", response.data.access_token);
   }
@@ -55,7 +56,7 @@ export const deleteWebsite = (websiteId) => api.delete(`/websites/delete/${websi
 
 // Metrics
 export const getMetrics = (websiteId) => api.get(`/metrics/?website_id=${websiteId}`);
-export const addMetric = (metricData) => api.post("/metrics/add/", metricData);
+export const addMetric = (metricData) => api.post("/metrics/add", metricData);
 
 // Alerts
 export const getAlerts = (websiteId) => api.get(`/alerts/?website_id=${websiteId}`);
@@ -80,7 +81,7 @@ export const fetchWebsiteMetrics = async (websiteId) => {
 // Fetch all websites from the backend
 export const fetchWebsites = async () => {
   try {
-    const response = await api.get("/websites/");
+    const response = await api.get("/websites");
     return response.data.map(site => ({
       ...site,
       uptime: site.uptime ?? 0,  // Ensure uptime defaults to 0 if undefined

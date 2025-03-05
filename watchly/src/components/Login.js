@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom"; // Import useNavigate for routin
 import api from "..//services/api";
 
 export default function Login({ onLogin }) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -41,20 +42,38 @@ export default function Login({ onLogin }) {
     setError("");
 
     try {
-      const response = await api.post("/auth/login", { email, password});
+        let response;
+        if (isSignUp) {
+            // Send request to register API
+            response = await api.post("/auth/register", { name, email, password });
 
-      if (response.data.access_token) {
-        localStorage.setItem("token", response.data.access_token);
-        navigate("/dashboard");
-      } else {
-          setError("Invalid email or password");
-      }
+            if (response.status === 201) {
+              console.log("Signup successful! Logging in...");
+              const loginResponse = await api.post("/auth/login", { email, password });
+              localStorage.setItem("token", loginResponse.data.access_token);
+              console.log("Token stored after signup:", loginResponse.data.access_token);
+              navigate("/dashboard"); // Redirect to dashboard
+              return;
+            }
+        } else {
+            // Send request to login API
+            response = await api.post("/auth/login", { email, password });
+        }
+
+        if (response.data.access_token) {
+            localStorage.setItem("token", response.data.access_token);
+            console.log("Token stored:", response.data.access_token);
+            navigate("/dashboard");
+        } else {
+            setError(isSignUp ? "Signup failed." : "Invalid email or password");
+        }
     } catch (error) {
-        setError("Login failed. Check your credentials.");
+        console.error("API Error:", error.response?.data || error.message)
+        setError(isSignUp ? "Signup failed. Try again." : "Login failed. Check your credentials.");
     }
 
     setIsLoading(false);
-  };
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-monitor-dark to-monitor-dark/90 flex items-center justify-center p-4">
@@ -82,6 +101,24 @@ export default function Login({ onLogin }) {
                   {error}
                 </div>
               )}
+
+              {/* Name input (only shown for signup mode) */}
+              {isSignUp && (
+                <div>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    placeholder="Full Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-white focus:border-transparent outline-none transition-all duration-200"
+                    required={isSignUp}  // Require only when signing up
+                    autoComplete="name"
+                  />
+                </div>
+              )}
+
               <div>
                 <input
                   type="email"
@@ -95,6 +132,7 @@ export default function Login({ onLogin }) {
                   autoComplete="email"
                 />
               </div>
+
               <div>
                 <input
                   type="password"
@@ -108,6 +146,7 @@ export default function Login({ onLogin }) {
                   autoComplete="current-password"
                 />
               </div>
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -117,34 +156,9 @@ export default function Login({ onLogin }) {
                     : "bg-white text-green-600 hover:bg-white/90"
                 }`}
               >
-                {isLoading ? (
-                  <span className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-green-600"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Processing...
-                  </span>
-                ) : (
-                  isSignUp ? "Sign Up" : "Login"
-                )}
+                {isLoading ? "Processing..." : isSignUp ? "Sign Up" : "Login"}
               </button>
+
               <button
                 type="button"
                 onClick={switchMode}

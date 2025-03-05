@@ -33,10 +33,19 @@ export default function WebsiteMonitorUI() {
     }
   }, []); // Empty dependency array ensures this runs only once
 
+  const triggerAlert = (message) => {
+    setNotifications((prev) => [...prev, message]);
+
+    setTimeout(() => {
+      setNotifications((prev) => prev.slice(1)); // Remove alert after 5 sec
+    }, 5000);
+  };
+
   // Fetch website statuses every 10s without triggering infinite re-renders
   const fetchStatuses = useCallback(async () => {
     if (websites.length === 0) return;
     setStatusLoading(true);
+
     try {
       const updatedWebsites = await Promise.all(
         websites.map(async (site) => {
@@ -50,16 +59,19 @@ export default function WebsiteMonitorUI() {
             console.log(`Metrics for ${site.url}:`, metricsData);
 
             const isDown = metricsData?.uptime === 0;
+            if (isDown) {
+              triggerAlert(`⚠️ Website Down: ${site.url} is not reachable!`)
+            }
 
             return {
               ...site,
-              uptime: metricsData?.uptime || 0, // Ensure uptime is valid
+              uptime: isDown ? 0 : metricsData?.uptime || 0, // Ensure uptime is valid
               response_time: metricsData?.response_time ?? "N/A",
               isDown,
             };
           } catch (err) {
             console.error(`Failed to fetch metrics for ${site.url}:`, err);
-            return { ...site, uptime: 0, response_time: "N/A" }; //  Graceful fallback
+            return { ...site, uptime: 0, response_time: "N/A", isDown: true }; //  Graceful fallback
           }
         })
       );
