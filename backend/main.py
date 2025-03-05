@@ -1,5 +1,6 @@
 #Entry point for server
 import os
+from flask import Flask, request, jsonify
 from flask_migrate import Migrate
 from flask_cors import CORS
 from app import create_app, db
@@ -9,8 +10,18 @@ import threading
 
 app = create_app()
 frontend_origin = os.getenv("FRONTEND_URL", "http://localhost:3000")
-CORS(app, resources={r"/*": {"origins": frontend_origin}}, supports_credentials=True),
+CORS(app, resources={r"/*": {"origins": frontend_origin}}, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 migrate = Migrate(app, db)
+
+
+@app.before_request
+def handle_options_request():
+    if request.method == "OPTIONS":
+        response = jsonify({"message": "CORS Preflight OK"})
+        response.headers.add("Access-Control-Allow-Origin", frontend_origin)
+        response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        return response, 200
 
 
 if __name__ == '__main__':

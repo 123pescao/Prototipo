@@ -20,25 +20,45 @@ scheduler = BackgroundScheduler()
 # Function to check Website status
 async def check_websites(website):
     logger.info(f"🔎 Checking website: {website.url}")
+
     async with httpx.AsyncClient() as client:
-            try:
-                start_time = datetime.utcnow()
-                response = await client.get(website.url, timeout=5, follow_redirects=True)
-                response_time = (datetime.utcnow() - start_time).total_seconds() * 1000
-                uptime = 1 if response.status_code == 200 else 0
-                logger.info(f"Checked website {website.url} - Status: {response.status_code}, Response Time: {response_time}ms, Uptime: {uptime}")
+        try:
+            start_time = datetime.utcnow()
+            response = await client.get(website.url, timeout=5, follow_redirects=True)
+            response_time = (datetime.utcnow() - start_time).total_seconds() * 1000  # Convert to ms
 
-            except httpx.RequestError as e:
-                response_time = 0
+            ## Only treat 200 responses as "Up"
+            if response.status_code == 200:
+                uptime = 1
+            else:
                 uptime = 0
-                logger.error(f"❌ {website.url} is DOWN - Error: {str(e)}")
+                logger.warning(f"⚠️ {website.url} responded with {response.status_code}, marking as DOWN.")
 
-    return {
+        except httpx.RequestError as e:
+            # Connection failed - Website is down
+            response_time = None
+            uptime = 0
+            logger.error(f"❌ {website.url} is DOWN - Connection Failed: {str(e)}")
+
+    # Ensure timestamp is always included
+    result = {
         "website": website.id,
-        "response_time": response_time,
+        "response_time": response_time if response_time is not None else 0,  # Handle None values
         "uptime": uptime,
-        "timestamp": datetime.utcnow()
+        "timestamp": datetime.utcnow(),
     }
+
+    # Save to DB
+    db.session.execute(
+        db.text(
+            "INSERT INTO metric (website_id, response_time, uptime, timestamp) "
+            "VALUES (:website_id, :response_time, :uptime, :timestamp)"
+        ),
+        result,  # Directly pass the result dictionary
+    )
+    db.session.commit()
+
+    return result  # Always return timestamp
 
 #Function to check all websites
 async def check_all_websites(app):

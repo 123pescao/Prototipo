@@ -7,6 +7,7 @@ from app import db
 import jwt
 from app.config import SECRET_KEY
 from app.utils.logger import logger
+from flask_jwt_extended import create_access_token
 
 
 auth_ns = Namespace('auth', description="Authentication Endpoints")
@@ -88,7 +89,7 @@ def token_required(f):
     return decorated
 
 #Route for user registration
-@auth_ns.route('/register')
+@auth_ns.route('/register', methods=["POST"])
 class RegisterUser(Resource):
     @auth_ns.expect(register_model)
     @auth_ns.response(201, "User Registered Successfully!", user_model)
@@ -118,9 +119,12 @@ class RegisterUser(Resource):
         db.session.add(new_user)
         db.session.commit()
 
+        access_token = create_access_token(identity=new_user.id)
+
         logger.warning(f"New User Registered: {email}")
         return {
             "message": "User registered successfully!",
+            "access_token":access_token,
             "user": {
                 "id": new_user.id,
                 "name": new_user.name,
