@@ -84,7 +84,7 @@ class AddWebsite(Resource):
 
 
 #Fetch and Add Websites
-@websites_ns.route("/")
+@websites_ns.route('', '/')
 class GetWebsites(Resource):
     @websites_ns.response(200, "Websites Retrieved Successfully!", [website_model])
     @token_required

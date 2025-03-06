@@ -8,12 +8,12 @@ from datetime import datetime
 from app.utils.email_utils import send_email_async
 from sqlalchemy.orm import sessionmaker
 from app.utils.logger import logger
+from sqlalchemy.sql import text  # Ensure text is imported
 import time
 import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 
 scheduler = BackgroundScheduler()
 
@@ -24,43 +24,45 @@ async def check_websites(website):
     async with httpx.AsyncClient() as client:
         try:
             start_time = datetime.utcnow()
+
             response = await client.get(website.url, timeout=5, follow_redirects=True)
             response_time = (datetime.utcnow() - start_time).total_seconds() * 1000  # Convert to ms
 
-            ## Only treat 200 responses as "Up"
-            if response.status_code == 200:
+            # Allows 2xx-3xx as Up for redirects
+            if 200 <= response.status_code < 400:
                 uptime = 1
             else:
                 uptime = 0
+            if uptime == 0:
                 logger.warning(f"⚠️ {website.url} responded with {response.status_code}, marking as DOWN.")
 
         except httpx.RequestError as e:
             # Connection failed - Website is down
-            response_time = None
+            response_time = 0  # ✅ Ensure response_time is not None
             uptime = 0
             logger.error(f"❌ {website.url} is DOWN - Connection Failed: {str(e)}")
 
-    # Ensure timestamp is always included
+    # ✅ Ensure timestamp is declared
+    timestamp = datetime.utcnow()
+
     result = {
-        "website": website.id,
-        "response_time": response_time if response_time is not None else 0,  # Handle None values
+        "website_id": website.id,  # ✅ Use website.id instead of website
+        "response_time": response_time,
         "uptime": uptime,
-        "timestamp": datetime.utcnow(),
+        "timestamp": timestamp,
     }
 
-    # Save to DB
-    db.session.execute(
-        db.text(
-            "INSERT INTO metric (website_id, response_time, uptime, timestamp) "
-            "VALUES (:website_id, :response_time, :uptime, :timestamp)"
-        ),
-        result,  # Directly pass the result dictionary
-    )
-    db.session.commit()
+    # ✅ Save to DB
+    # db.session.execute(
+    #    text("INSERT INTO metric (website_id, response_time, uptime, timestamp) VALUES (:website_id, :response_time, :uptime, :timestamp)"),
+    #   {"website_id": website.id, "response_time": response_time, "uptime": uptime, "timestamp": timestamp}  # ✅ Corrected reference
+    #)
 
-    return result  # Always return timestamp
+    # db.session.commit()
 
-#Function to check all websites
+    return result  # ✅ Always return result
+
+# Function to check all websites
 async def check_all_websites(app):
     with app.app_context():
         websites = db.session.execute(db.select(Website)).scalars().all()
@@ -75,7 +77,7 @@ async def check_all_websites(app):
 
         db.session.bulk_insert_mappings(Metric, [
             {
-                "website_id": result["website"],
+                "website_id": result["website_id"],  # ✅ Fixed reference to website_id
                 "response_time": result["response_time"],
                 "uptime": result["uptime"],
                 "timestamp": result["timestamp"]
@@ -83,18 +85,18 @@ async def check_all_websites(app):
             for result in results
         ])
         db.session.commit()
-        print("✅Metrics saved successfully!")
+        print("✅ Metrics saved successfully!")
 
-        #Run alerts concurrently
+        # Run alerts concurrently
         alert_tasks = [
-            check_for_alert(result["website"], "Website Down", app)
+            check_for_alert(result["website_id"], "Website Down", app)
             if result["uptime"] == 0
-            else check_for_alert(result["website"], "Website Up", app)
+            else check_for_alert(result["website_id"], "Website Up", app)
             for result in results
         ]
         await asyncio.gather(*alert_tasks)
 
-#Function to check alert conditions
+# Function to check alert conditions
 async def check_for_alert(website_id, alert_type, app):
     with app.app_context():
         website = db.session.get(Website, website_id)
@@ -119,7 +121,7 @@ async def check_for_alert(website_id, alert_type, app):
             if existing_alert:
                 logger.error(f"Alert already exists for {website.url} - Type: {alert_type}")
                 print(f"Alert already exists for Website ID {website_id} - Type: {alert_type}")
-                return  # Do NOT create a duplicate alert
+                return  # ✅ Do NOT create a duplicate alert
 
             # If no unresolved alert exists, create a new one
             new_alert = Alert(
@@ -133,7 +135,7 @@ async def check_for_alert(website_id, alert_type, app):
             logger.info(f"New alert created for {website.url} - Type: {alert_type}")
             print(f"Alert triggered for {website.url} - Type: {alert_type}")
 
-            #Send Email Alert
+            # ✅ Send Email Alert
             subject = f"Alert: {website.url} is DOWN!"
             content = f"Watchly has detected that website: {website.url} is down. Please Verify Immediately!"
             await send_email_async(user.email, subject, content)
@@ -152,21 +154,14 @@ def run_monitoring_task(app):
     """Runs the async check_all_websites() function in a synchronous context."""
     asyncio.run(check_all_websites(app))
 
-
 def start_monitoring(app):
     """Starts the APScheduler job for monitoring websites at intervals."""
-    print("✅ Starting monitoring service...")  # Debugging print
-    logger.info("✅ Starting monitoring service...")  # Log startup
-
-    scheduler.add_job(run_monitoring_task, "interval", seconds=30, args=[app])
-    scheduler.start()
-
-
-    print("✅ Scheduler is running. Keeping process alive...")
-
-    while True:
-        time.sleep(60)
-
+    if not scheduler.running:  # ✅ Prevent multiple schedulers
+        print("✅ Starting monitoring service...")
+        scheduler.add_job(run_monitoring_task, "interval", seconds=30, args=[app])
+        scheduler.start()
+    else:
+        print("🚀 Scheduler is already running. Skipping duplicate start.")
 
 if __name__ == "__main__":
     from app import create_app

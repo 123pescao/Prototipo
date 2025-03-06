@@ -83,7 +83,7 @@ class AddAlert(Resource):
         }), 201
 
 #Fetch alerts
-@alerts_ns.route('/')
+@alerts_ns.route('', '/')
 class GetAlerts(Resource):
     @alerts_ns.response(200, "Alerts retrieved successfully!", [alert_model])
     @token_required

@@ -7,7 +7,7 @@ from app.routes.auth import token_required
 
 metrics_ns = Namespace('metrics', description="Website Metrics Endpoints")
 
-#Models
+# Models
 metric_model = metrics_ns.model("Metric", {
     "id": fields.Integer,
     "website_id": fields.Integer,
@@ -22,8 +22,9 @@ create_metric_model = metrics_ns.model("CreateMetric", {
     "uptime": fields.Float(required=True, description="Uptime status (1=Up, 0=Down)")
 })
 
-#route to fetch all metrics for espicifc website
-@metrics_ns.route('/')
+# Route to fetch all metrics for a specific website
+@metrics_ns.route('', '/')
+@metrics_ns.route('', '/')
 class GetMetrics(Resource):
     @metrics_ns.response(200, "Metrics retrieved successfully!", [metric_model])
     @metrics_ns.response(400, "Website ID is required")
@@ -31,7 +32,7 @@ class GetMetrics(Resource):
     def get(self, current_user):
         """Fetch all metrics for a specific website"""
         website_id = request.args.get('website_id', type=int)
-        limit = request.args.get('limit', type=int, default=10)     #Metrics set to last 10 logs default
+        limit = request.args.get('limit', type=int, default=10)  # Fetch last 10 records
 
         if not website_id:
             return {"error": "Website ID is required"}, 400
@@ -39,7 +40,7 @@ class GetMetrics(Resource):
         query = Metric.query.filter_by(website_id=website_id).order_by(Metric.timestamp.desc())
 
         if limit > 0:
-            query = query.limit(limit)
+            query = query.limit(limit)  # Fix: limit must be applied to the query object
 
         metrics = query.all()
 
@@ -47,21 +48,20 @@ class GetMetrics(Resource):
             return [{
                 "id": None,
                 "website_id": website_id,
-                "uptime": 0,  # Default uptime
-                "response_time": 0,  # Default response time
+                "uptime": 0.0,  # Ensure numeric uptime (float)
+                "response_time": 0.0,  # Ensure numeric response time
                 "timestamp": None  # No timestamp available
             }], 200
 
         return [{
             "id": metric.id,
             "website_id": metric.website_id,
-            "uptime": metric.uptime,
-            "response_time": metric.response_time,
+            "uptime": float(metric.uptime),  # Ensure numeric uptime
+            "response_time": float(metric.response_time),  #  Ensure numeric response time
             "timestamp": metric.timestamp.isoformat()
         } for metric in metrics], 200
 
-
-#Route to add new metric
+# Route to add a new metric
 @metrics_ns.route('/add')
 class AddMetric(Resource):
     @metrics_ns.expect(create_metric_model)
