@@ -12,7 +12,15 @@ const StatsGrid = ({ stats }) => {
               <div>
                 <p className="text-white/60 text-sm">{stat.title}</p>
                 <p className="text-3xl font-bold text-white mt-1">
-                  {isNaN(stat.value) || stat.value === "N/A" ? "0" : stat.value} {/* Fix for NaN */}
+                  {isNaN(parseFloat(stat.value))
+                    ? "0"
+                    : stat.title === "Uptime"
+                      ? `${parseFloat(stat.value).toFixed(1)}%`   // Only add `%` for Uptime
+                      : stat.title === "Avg Response Time"
+                        ? `${parseFloat(stat.value).toFixed(2)} ms`  // Add `ms` for response time
+                        : stat.title === "Active Alerts"
+                          ? `${parseInt(stat.value)}`  // No `%`, just the alert count
+                          : `${parseInt(stat.value)}`}
                 </p>
               </div>
               <stat.icon className={`w-8 h-8 ${stat.color}`} />

@@ -4,102 +4,152 @@ import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
 import Header from "./Header";
 import StatsGrid from "./StatsGrid";
+import api from "../services/api";
+import { getAlerts } from "../services/api";
 import WebsitesTable from "./WebsitesTable";
 import {
   fetchWebsiteMetrics,
-  calculateUptimePercentage,
-  calculateAverageResponseTime,
   addWebsite as apiAddWebsite,
-  deleteWebsite
+  deleteWebsite,
 } from "../services/api";
 import { Globe, Activity, Clock, AlertTriangle } from "lucide-react";
 import useWebsites from "../hooks/useWebsites";
 
 export default function WebsiteMonitorUI() {
   const navigate = useNavigate();
-  const { websites, setWebsites, loading: initialLoading, error, fetchWebsites } = useWebsites();
+  const { websites, setWebsites, loading: initialLoading, fetchWebsites } = useWebsites();
+  const [uptimePercentage, setUptimePercentage] = useState("0.0");
+  const [averageResponseTime, setAverageResponseTime] = useState("0.0");
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeAlerts, setActiveAlerts] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [formError, setFormError] = useState("");
   const latestWebsites = useRef([]);
   const [statusLoading, setStatusLoading] = useState(false);
+  const intervalRef = useRef(null);
 
-  // Fetch websites only once when component mounts
+  // Create a ref to always hold the latest websites state
+  const websitesRef = useRef(websites);
   useEffect(() => {
-    if (websites.length === 0) {
-      fetchWebsites(); // Ensures we fetch websites once
-    }
-  }, []); // Empty dependency array ensures this runs only once
+    websitesRef.current = websites;
+  }, [websites]);
 
-  const triggerAlert = (message) => {
-    setNotifications((prev) => [...prev, message]);
+  // Alert helper: adds a new alert and removes it after 5 seconds.
+  const triggerAlert = useCallback((message) => {
+    setNotifications((prev) => {
+      const newAlerts = [...prev, message];
+      if (newAlerts.length > 5) newAlerts.shift();
+      return newAlerts;
+    });
 
     setTimeout(() => {
-      setNotifications((prev) => prev.slice(1)); // Remove alert after 5 sec
+      setNotifications((prev) => prev.slice(1));
     }, 5000);
-  };
+  }, [setNotifications]);
 
-  // Fetch website statuses every 10s without triggering infinite re-renders
+  const fetchActiveAlerts = useCallback(async () => {
+    try {
+      // If your backend returns all unresolved alerts for the current user:
+      const response = await api.get("/alerts?status=unresolved");
+      // response.data is presumably an array of unresolved alerts
+      setActiveAlerts(response.data.length);
+      console.log("Updated active alerts count:", response.data.length);
+    } catch (error) {
+      console.error("Failed to fetch unresolved alerts:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActiveAlerts();
+    const intervalId = setInterval(fetchActiveAlerts, 10000); // poll every 10s
+    return () => clearInterval(intervalId);
+  }, [fetchActiveAlerts]);
+
+  // fetchStatuses: fetches metrics for each website, formats uptime as percentage,
+  // and returns the updated website data.
   const fetchStatuses = useCallback(async () => {
-    if (websites.length === 0) return;
+    const currentWebsites = websitesRef.current;
+    if (currentWebsites.length === 0) return;
     setStatusLoading(true);
 
     try {
       const updatedWebsites = await Promise.all(
-        websites.map(async (site) => {
-          if (!site.id) {
-            console.error(`Skipping site: Missing ID`, site);
-            return { ...site, uptime: 0, response_time: "N/A"};
-          }
+        currentWebsites.map(async (site) => {
+          if (!site.id) return { ...site, numericUptime: 0, numericResponseTime: 0, uptime: "0%", response_time: "N/A", isDown: true };
 
           try {
             const metricsData = await fetchWebsiteMetrics(site.id);
-            console.log(`Metrics for ${site.url}:`, metricsData);
+            const numericUptime = parseFloat(metricsData.uptime ?? 0);  // ✅ Ensure numeric value
+            const numericResponseTime = parseFloat(metricsData.response_time ?? 0);
 
-            const isDown = metricsData?.uptime === 0;
-            if (isDown) {
-              triggerAlert(`⚠️ Website Down: ${site.url} is not reachable!`)
-            }
+            const uptimeDisplay = `${(numericUptime * 100).toFixed(1)}%`;
+            const responseTimeDisplay = numericResponseTime > 0 ? numericResponseTime.toFixed(2) : "N/A";
+            const isDown = numericUptime < 0.5;
 
             return {
               ...site,
-              uptime: isDown ? 0 : metricsData?.uptime || 0, // Ensure uptime is valid
-              response_time: metricsData?.response_time ?? "N/A",
-              isDown,
+              numericUptime,
+              numericResponseTime,
+              uptime: uptimeDisplay,
+              response_time: responseTimeDisplay,
+              isDown
             };
           } catch (err) {
             console.error(`Failed to fetch metrics for ${site.url}:`, err);
-            return { ...site, uptime: 0, response_time: "N/A", isDown: true }; //  Graceful fallback
+            return { ...site, numericUptime: 0, numericResponseTime: 0, uptime: "0.0%", response_time: "N/A", isDown: true };
           }
         })
       );
 
-      console.log("Updated Websites with Metrics:", updatedWebsites);
+      setWebsites(updatedWebsites);
+      //Ensure `uptimePercentage` updates correctly
+      const validWebsites = updatedWebsites.filter(site => !isNaN(site.numericUptime));
+      const totalUptime = validWebsites.reduce((sum, site) => sum + site.numericUptime, 0);
+      const avgUptime = validWebsites.length > 0
+        ? ((totalUptime / validWebsites.length) * 100).toFixed(1)
+        : "0.0";
 
-       // Update state safely
-      if (JSON.stringify(updatedWebsites) !== JSON.stringify(websites)) {
-        latestWebsites.current = updatedWebsites;
-        setWebsites([...updatedWebsites]);
-      }
+      console.log("Before setting uptime percentage:", uptimePercentage); // Debug
+      setUptimePercentage(avgUptime);
+      console.log("After setting uptime percentage:", avgUptime);
+
+      const validResponseTimes = updatedWebsites.filter(site => !isNaN(site.numericResponseTime) && site.numericResponseTime > 0);
+      const totalResponseTime = validResponseTimes.reduce((sum, site) => sum + site.numericResponseTime, 0);
+      const avgResponseTime = validResponseTimes.length > 0
+        ? (totalResponseTime / validResponseTimes.length).toFixed(2)  // ✅ Ensure 2 decimal places
+        : "0.0";
+
+      console.log("Before setting avg response time:", averageResponseTime); // Debug
+      setAverageResponseTime(avgResponseTime);
+      console.log("After setting avg response time:", avgResponseTime);  // Debug
 
     } catch (error) {
       console.error("Failed to update website statuses:", error);
     } finally {
       setStatusLoading(false);
     }
-  }, [websites, setWebsites]);
+  }, [triggerAlert, setWebsites, fetchWebsiteMetrics]);
 
   useEffect(() => {
-    if (websites.length === 0) return;  // Prevent unnecessary API calls
+    console.log("Updated uptime percentage (State Change):", uptimePercentage);
+  }, [uptimePercentage]);  // ✅ Ensures React detects changes
 
-    const interval = setInterval(() => {
+  // useEffect: run fetchStatuses immediately on mount and then every 10 seconds.
+  useEffect(() => {
+    fetchStatuses(); // Fetch once on mount
+
+    intervalRef.current = setInterval(() => {
+      console.log("Fetching latest status updates...");
       fetchStatuses();
     }, 10000);
 
-    return () => clearInterval(interval);  // Cleanup interval on unmount or state change
-  }, [websites, fetchStatuses])
+    return () => {
+      console.log("Clearing interval for status updates.");
+      clearInterval(intervalRef.current);
+    };
+  }, [fetchStatuses]);
 
   const handleInputChange = (e) => {
     setUrl(e.target.value);
@@ -161,26 +211,19 @@ export default function WebsiteMonitorUI() {
     {
       icon: Activity,
       title: "Uptime",
-      value: websites.length > 0
-        ? (latestWebsites.current.reduce((sum, site) => sum + site.uptime, 0) / websites.length).toFixed(1) 
-        : "0.0",
-      color: "text-green-500",
+      value: `${uptimePercentage}%`,
+      color: uptimePercentage === "100.0" ? "text-green-500" : "text-yellow-500",
     },
     {
       icon: Clock,
       title: "Avg Response Time",
-      value: websites.length > 0
-        ? (latestWebsites.current
-            .filter(site => typeof site.response_time === "number")
-            .reduce((sum, site) => sum + site.response_time, 0) / websites.length
-          ).toFixed(1)
-        : "0.0",
+      value: `${averageResponseTime} ms`,
       color: "text-purple-500",
     },
     {
       icon: AlertTriangle,
       title: "Active Alerts",
-      value: notifications.length,
+      value: activeAlerts,
       color: "text-yellow-500",
     },
   ];
@@ -192,20 +235,31 @@ export default function WebsiteMonitorUI() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-800/5 via-transparent to-transparent"></div>
-      <Header showNotifications={showNotifications} setShowNotifications={setShowNotifications} notifications={notifications} />
+      <Header
+        showNotifications={showNotifications}
+        setShowNotifications={setShowNotifications}
+        notifications={notifications}
+      />
       <main className="container mx-auto px-4 py-8 relative z-10">
-        <StatsGrid stats={stats} />
+      <StatsGrid
+        stats={stats} />
         <form onSubmit={handleSubmit} className="mb-8">
           <div className="flex space-x-4">
             <input
               type="url"
+              id="websiteUrl"
+              name="websiteUrl"
               className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               placeholder="Enter website URL (e.g., https://example.com)"
               value={url}
               onChange={handleInputChange}
               required
             />
-            <Button type="submit" disabled={loading} className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
               {loading ? "Adding..." : "Add Website"}
             </Button>
           </div>
