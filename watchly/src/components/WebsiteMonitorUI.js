@@ -20,6 +20,7 @@ export default function WebsiteMonitorUI() {
   const { websites, setWebsites, loading: initialLoading, fetchWebsites } = useWebsites();
   const [uptimePercentage, setUptimePercentage] = useState("0.0");
   const [averageResponseTime, setAverageResponseTime] = useState("0.0");
+  const [selectedFrequency, setSelectedFrequency] = useState(60);
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeAlerts, setActiveAlerts] = useState(0);
@@ -176,19 +177,17 @@ export default function WebsiteMonitorUI() {
       return;
     }
 
-    if (url.trim() !== "") {
-      setLoading(true);
-      try {
-        await apiAddWebsite({ url, name: url, frequency: 5 });
-        fetchWebsites();
-        setUrl("");
-        setFormError("");
-      } catch (error) {
-        console.error("Failed to add website:", error);
-        setFormError("Failed to add website. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+    setLoading(true);
+    try {
+      await apiAddWebsite({ url, name: url, frequency: selectedFrequency });
+      fetchWebsites();
+      setUrl("");
+      setFormError("");
+    } catch (error) {
+      console.error("Failed to add website:", error);
+      setFormError("Failed to add website. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -255,6 +254,19 @@ export default function WebsiteMonitorUI() {
               onChange={handleInputChange}
               required
             />
+            <select
+              value={selectedFrequency}
+              onChange={(e) => setSelectedFrequency(Number(e.target.value))}
+              className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600"
+            >
+              <option value={10}>10 sec</option>
+              <option value={30}>30 sec</option>
+              <option value={60}>1 min</option>
+              <option value={300}>5 min</option>
+              <option value={600}>10 min</option>
+              <option value={1800}>30 min</option>
+              <option value={3600}>1 hour</option>
+            </select>
             <Button
               type="submit"
               disabled={loading}
