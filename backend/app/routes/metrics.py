@@ -1,11 +1,12 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from app.models import Metric
+from app.models import Metric, Website
 from app import db
 from datetime import datetime
 from app.routes.auth import token_required
 
 metrics_ns = Namespace('metrics', description="Website Metrics Endpoints")
+sites_ns = Namespace('sites', description="Manage Monitoring Frequency")
 
 # Models
 metric_model = metrics_ns.model("Metric", {
@@ -98,3 +99,28 @@ class AddMetric(Resource):
                 "timestamp": new_metric.timestamp.isoformat()
             }
         }, 201
+
+@sites_ns.route('/<int:website_id>/frequency')
+class UpdateFrequency(Resource):
+    @token_required
+    def patch(self, current_user, website_id):
+        """ Update website monitoring frequency (Only the user who added the website can update it) """
+        data = request.get_json()
+        new_frequency = data.get("frequency")
+
+        # Validate the requested frequency
+        allowed_frequencies = [10, 30, 60, 300, 600, 1800, 3600]
+        if new_frequency not in allowed_frequencies:
+            return {"error": "Invalid frequency. Choose from 10, 30, 60, 300, 600, 1800, 3600 seconds."}, 400
+
+        # Check if the website exists and belongs to the user making the request
+        website = Website.query.filter_by(id=website_id, user_id=current_user.id).first()
+        if not website:
+            return {"error": "Unauthorized: You can only update frequency for your own websites."}, 403
+
+        # Update frequency
+        website.frequency = new_frequency
+        db.session.commit()
+
+        return {"message": f"Monitoring frequency updated to {new_frequency} seconds for {website.url}."}, 200
+
