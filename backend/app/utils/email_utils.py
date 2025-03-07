@@ -4,6 +4,8 @@ import sendgrid
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from dotenv import load_dotenv
+import logging
+from app.utils.logger import logger
 
 
 load_dotenv()
@@ -22,11 +24,12 @@ if not FROM_EMAIL:
 
 async def send_email_async(to_email, subject, message):
     if not SENDGRID_API_KEY:
-        print("❌ ERROR: SendGrid API Key is missing!")
+        logger.error("❌ ERROR: SendGrid API Key is missing! Email cannot be sent.")
         return False
     if not FROM_EMAIL:
-        print("❌ ERROR: FROM_EMAIL is missing! Email cannot be sent.")
+        logger.error("❌ ERROR: FROM_EMAIL is missing! Email cannot be sent.")
         return False
+
     sg = sendgrid.SendGridAPIClient(SENDGRID_API_KEY)
     email = Mail(
         from_email=FROM_EMAIL,
@@ -36,12 +39,19 @@ async def send_email_async(to_email, subject, message):
     )
 
     loop = asyncio.get_event_loop()
-    try:
-        response = await loop.run_in_executor(None, sg.send, email)
-        print(f"✅ Email Sent! Status Code: {response.status_code}")
-        return True
-    except Exception as e:
-        print(f"❌ General Error Sending Email: {str(e)}")
+    max_retries = 3  # ✅ Retry up to 3 times
+
+    for attempt in range(max_retries):
+        try:
+            response = await loop.run_in_executor(None, sg.send, email)
+            logger.info(f"✅ Email Sent! Status Code: {response.status_code}")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Email Sending Failed (Attempt {attempt + 1}/{max_retries}): {str(e)}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2 ** attempt)  # ✅ Exponential backoff (wait 2s, then 4s)
+            else:
+                logger.error("❌ Email sending permanently failed after retries.")
     return False
 
 # Test if SendGrid works
