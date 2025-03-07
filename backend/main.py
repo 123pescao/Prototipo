@@ -23,6 +23,9 @@ def handle_options_request():
         response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
         return response, 200
 
+@app.route("/")
+def home():
+    return jsonify({"message": "Watchly API is running!"}), 200
 
 if __name__ == '__main__':
     import os
