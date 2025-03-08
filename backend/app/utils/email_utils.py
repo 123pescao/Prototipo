@@ -5,7 +5,7 @@ import httpx
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from dotenv import load_dotenv
-from utils.logger import logger  # Ensure logger is imported
+from app.utils.logger import logger  # Ensure logger is imported
 
 load_dotenv()
 
