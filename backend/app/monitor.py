@@ -5,7 +5,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app import create_app, db
 from app.models import Website, Metric, Alert, User
 from datetime import datetime
-from app.utils.email_utils import send_email_async
 from sqlalchemy.orm import sessionmaker
 from app.utils.logger import logger
 from sqlalchemy.sql import text  # Ensure text is imported
@@ -98,6 +97,7 @@ async def check_all_websites(app):
 
 # Function to check alert conditions
 async def check_for_alert(website_id, alert_type, app):
+    from app.utils.email_utils import send_email_async
     with app.app_context():
         website = db.session.get(Website, website_id)
         if not website:
