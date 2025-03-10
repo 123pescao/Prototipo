@@ -9,7 +9,7 @@ from app.monitor import start_monitoring
 import threading
 
 app = create_app()
-frontend_origin = os.getenv("FRONTEND_URL", "http://localhost:3000")
+frontend_origin = os.getenv("FRONTEND_URL", "https://5e232994.prototipo-7d0.pages.dev")
 CORS(app, resources={r"/*": {"origins": frontend_origin}}, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 migrate = Migrate(app, db)
 
