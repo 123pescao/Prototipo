@@ -25,11 +25,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 5000
 
 # Set environment variables for Flask
-ENV FLASK_APP=main:app
 ENV FLASK_RUN_HOST=0.0.0.0
 
 # Ensure database migrations are applied before running Gunicorn
-RUN flask db upgrade || true  # Avoid errors if migrations don't exist
+RUN flask db upgrade
 
 # Start Gunicorn with error logging
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:create_app()", "--log-level=debug"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:app", "--log-level=debug"]
