@@ -1,4 +1,4 @@
-#Entry point for server
+# Entry point for server
 import os
 from flask import Flask, request, jsonify
 from flask_migrate import Migrate
@@ -9,10 +9,14 @@ from app.monitor import start_monitoring
 import threading
 
 app = create_app()
-allowed_origins = os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")
+
+# ✅ FIX: Ensure allowed_origins is a properly formatted list
+allowed_origins = [origin.strip() for origin in os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")]
+
 CORS(app, supports_credentials=True, origins=allowed_origins,
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"])
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"])
+
 migrate = Migrate(app, db)
 
 @app.route("/", methods=["GET", "POST"])
@@ -23,28 +27,30 @@ def home():
         data = request.get_json()
         return jsonify({"received": data}), 200  # Echo back received JSON
 
-
 @app.route("/<path:path>", methods=["OPTIONS"])
 def handle_cors_preflight(path):
     """
-    Manually handle OPTIONS requests for CORS preflight.
+    ✅ FIX: Handle CORS preflight correctly and avoid 500 errors.
     """
-    response = jsonify({"message": "CORS preflight OK"})
     origin = request.headers.get("Origin", "")
 
     if origin in allowed_origins:
+        response = jsonify({"message": "CORS preflight OK"})
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response, 204  # ✅ 204 No Content
 
-    return response, 204  # Return 204 No Content
-
+    # 🚨 If origin is NOT allowed, return a 403 error with CORS headers
+    response = jsonify({"error": "CORS origin not allowed"})
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response, 403  # 🔥 Prevents crashing with 500 error
 
 @app.after_request
 def apply_cors_headers(response):
     """
-    Apply CORS headers to all responses (except OPTIONS).
+    ✅ FIX: Ensure CORS headers are applied to all responses, including errors.
     """
     origin = request.headers.get("Origin", "")
 
