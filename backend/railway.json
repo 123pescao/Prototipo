@@ -1,5 +1,4 @@
 {
-  "root": "backend",
   "build": {
     "builder": "NIXPACKS",
     "nixpacksConfig": {
