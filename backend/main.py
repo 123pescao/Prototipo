@@ -74,4 +74,4 @@ if __name__ == '__main__':
 
     print("⚡ Starting Flask server...")
     port = int(os.getenv("PORT", 5000))  # Railway provides PORT env variable
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port)
