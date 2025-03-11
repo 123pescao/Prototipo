@@ -1,0 +1,13 @@
+[33mc473b5b[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{0}: reset: moving to origin/main
+[33me89a55a[m[33m ([m[1;32mbackup-main[m[33m)[m HEAD@{1}: checkout: moving from c473b5bf069ef7e83edd628a654f6faf981c705e to main
+[33mc473b5b[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{2}: pull --rebase origin main (start): checkout c473b5bf069ef7e83edd628a654f6faf981c705e
+[33me89a55a[m[33m ([m[1;32mbackup-main[m[33m)[m HEAD@{3}: commit: A lot of debugging, Making some connections and going creisi
+[33m3cfe459[m HEAD@{4}: commit: reverting
+[33mdcd5d71[m HEAD@{5}: pull --no-rebase origin main: Merge made by the 'ort' strategy.
+[33m3e7f7be[m HEAD@{6}: commit: Adding root
+[33m05ba6ba[m HEAD@{7}: pull: Fast-forward
+[33mf993acc[m HEAD@{8}: commit: CORS Fix
+[33m7893688[m HEAD@{9}: pull: Fast-forward
+[33mafc45ce[m HEAD@{10}: commit: Fixing endpoints and routes. Neon DB and Railway functioning
+[33m7387ef1[m HEAD@{11}: pull origin main: Fast-forward
+[33m0429b51[m HEAD@{12}: commit: Fix: Added psycopg2-binary to requirements

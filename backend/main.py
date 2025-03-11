@@ -1,21 +1,21 @@
-# Entry point for server
 import os
+import threading
 from flask import Flask, request, jsonify
 from flask_migrate import Migrate
 from flask_cors import CORS
 from app import create_app, db
 from app.models import User, Website, Metric, Alert
 from app.monitor import start_monitoring
-import threading
 
+#  Gunicorn expects a callable `app` instance
 app = create_app()
 
-# ✅ FIX: Ensure allowed_origins is a properly formatted list
+#  Ensure allowed_origins is correctly formatted
 allowed_origins = [origin.strip() for origin in os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")]
 
 CORS(app, supports_credentials=True, origins=allowed_origins,
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     allow_headers=["Content-Type", "Authorization"])
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"])
 
 migrate = Migrate(app, db)
 
@@ -25,15 +25,14 @@ def home():
         return jsonify({"message": "Watchly API is running!"}), 200
     elif request.method == "POST":
         data = request.get_json()
-        return jsonify({"received": data}), 200  # Echo back received JSON
+        return jsonify({"received": data}), 200
 
 @app.route("/<path:path>", methods=["OPTIONS"])
 def handle_cors_preflight(path):
     """
-    ✅ FIX: Handle CORS preflight correctly and avoid 500 errors.
+    ✅ Handle CORS preflight correctly and avoid 500 errors.
     """
     origin = request.headers.get("Origin", "")
-
     if origin in allowed_origins:
         response = jsonify({"message": "CORS preflight OK"})
         response.headers["Access-Control-Allow-Origin"] = origin
@@ -42,10 +41,9 @@ def handle_cors_preflight(path):
         response.headers["Access-Control-Allow-Credentials"] = "true"
         return response, 204  # ✅ 204 No Content
 
-    # 🚨 If origin is NOT allowed, return a 403 error with CORS headers
     response = jsonify({"error": "CORS origin not allowed"})
     response.headers["Access-Control-Allow-Origin"] = "*"
-    return response, 403  # 🔥 Prevents crashing with 500 error
+    return response, 403
 
 @app.after_request
 def apply_cors_headers(response):
@@ -53,7 +51,6 @@ def apply_cors_headers(response):
     Ensure CORS headers are applied to all responses, including errors.
     """
     origin = request.headers.get("Origin", "")
-
     if origin in allowed_origins:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
@@ -62,8 +59,8 @@ def apply_cors_headers(response):
 
     return response
 
-if __name__ == '__main__':
-    import os
+# ✅ Ensure Gunicorn can recognize the app
+if __name__ != '__main__':
     with app.app_context():
         db.create_all()
         print("✅ Database created successfully!")
@@ -71,7 +68,3 @@ if __name__ == '__main__':
     # Start monitoring in a separate thread
     monitoring_thread = threading.Thread(target=start_monitoring, args=(app,), daemon=True)
     monitoring_thread.start()
-
-    print("⚡ Starting Flask server...")
-    port = int(os.getenv("PORT", 5000))  # Railway provides PORT env variable
-    app.run(host="0.0.0.0", port=port)
