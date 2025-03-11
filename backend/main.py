@@ -50,7 +50,7 @@ def handle_cors_preflight(path):
 @app.after_request
 def apply_cors_headers(response):
     """
-    ✅ FIX: Ensure CORS headers are applied to all responses, including errors.
+    Ensure CORS headers are applied to all responses, including errors.
     """
     origin = request.headers.get("Origin", "")
 
