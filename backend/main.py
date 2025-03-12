@@ -47,7 +47,7 @@ def handle_cors_preflight(path):
 @app.after_request
 def apply_cors_headers(response):
     """Ensure CORS headers are applied to all responses."""
-    origin = request.headers.get("Origin")
+    origin = request.headers.get("Origin", "")
     if origin in allowed_origins:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
@@ -65,3 +65,5 @@ if __name__ != '__main__':
     # Start monitoring in a separate thread
     monitoring_thread = threading.Thread(target=start_monitoring, args=(app,), daemon=True)
     monitoring_thread.start()
+
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
