@@ -16,7 +16,7 @@ function App() {
     console.log("Checking token in localStorage:", savedToken);  // Debugging
     setUser(!!savedToken);  // Set to true if token exists
     setIsLoading(false);
-}, []);
+  }, []);
 
   // Handle login and set token
   const handleLogin = () => {
@@ -42,18 +42,20 @@ function App() {
       <Routes>
         {/* Landing page is always the first page */}
         <Route path="/" element={<LandingPage />} />
+
         {/* Login page comes after the landing page */}
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
+
         {/* Dashboard route, accessible only if user is authenticated */}
         <Route
-            path="/dashboard"
-            element={
-                user ? (
-                    <WebsiteMonitorUI onLogout={handleLogout} />
-                ) : (
-                    <Navigate to="/login" replace />
-                )
-            }
+          path="/dashboard"
+          element={
+            user ? (
+              <WebsiteMonitorUI onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
       </Routes>
     </div>

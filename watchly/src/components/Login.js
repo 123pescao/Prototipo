@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Eye, Monitor } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // Import useNavigate for routing
-import api from "..//services/api";
+import api from "../services/api";
 
 export default function Login({ onLogin }) {
   const [name, setName] = useState("");
@@ -42,38 +42,38 @@ export default function Login({ onLogin }) {
     setError("");
 
     try {
-        let response;
-        if (isSignUp) {
-            // Send request to register API
-            response = await api.post("/auth/register", { name, email, password });
+      let response;
+      if (isSignUp) {
+        // Send request to register API
+        response = await api.post("/auth/register", { name, email, password });
 
-            if (response.status === 201) {
-              console.log("Signup successful! Logging in...");
-              const loginResponse = await api.post("/auth/login", { email, password });
-              localStorage.setItem("token", loginResponse.data.access_token);
-              console.log("Token stored after signup:", loginResponse.data.access_token);
-              navigate("/dashboard"); // Redirect to dashboard
-              return;
-            }
-        } else {
-            // Send request to login API
-            response = await api.post("/auth/login", { email, password });
+        if (response.status === 201) {
+          console.log("Signup successful! Logging in...");
+          const loginResponse = await api.post("/auth/login", { email, password });
+          localStorage.setItem("token", loginResponse.data.access_token);
+          console.log("Token stored after signup:", loginResponse.data.access_token);
+          navigate("/dashboard"); // Redirect to dashboard
+          return;
         }
+      } else {
+        // Send request to login API
+        response = await api.post("/auth/login", { email, password });
+      }
 
-        if (response.data.access_token) {
-            localStorage.setItem("token", response.data.access_token);
-            console.log("Token stored:", response.data.access_token);
-            navigate("/dashboard");
-        } else {
-            setError(isSignUp ? "Signup failed." : "Invalid email or password");
-        }
+      if (response.data.access_token) {
+        localStorage.setItem("token", response.data.access_token);
+        console.log("Token stored:", response.data.access_token);
+        navigate("/dashboard");
+      } else {
+        setError(isSignUp ? "Signup failed." : "Invalid email or password");
+      }
     } catch (error) {
-        console.error("API Error:", error.response?.data || error.message)
-        setError(isSignUp ? "Signup failed. Try again." : "Login failed. Check your credentials.");
+      console.error("API Error:", error.response?.data || error.message);
+      setError(isSignUp ? "Signup failed. Try again." : "Login failed. Check your credentials.");
     }
 
     setIsLoading(false);
-};
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-monitor-dark to-monitor-dark/90 flex items-center justify-center p-4">
@@ -168,6 +168,7 @@ export default function Login({ onLogin }) {
               </button>
             </form>
           </div>
+
           {/* Right Panel - Info Panel */}
           <div className="w-full md:w-1/2 bg-monitor-DEFAULT p-8 text-white flex flex-col justify-center items-center relative overflow-hidden">
             <div className="relative z-10 text-center">
