@@ -41,7 +41,7 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "supersecretkey")
 
-    CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}},
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://prototipo-70.pages.dev"]}},
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])

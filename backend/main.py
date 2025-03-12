@@ -11,7 +11,7 @@ from app.monitor import start_monitoring
 app = create_app()
 
 #  Ensure allowed_origins is correctly formatted
-allowed_origins = [origin.strip() for origin in os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")]
+allowed_origins = [origin.strip() for origin in os.getenv("FRONTEND_URL", "http://localhost:3000,https://prototipo-70.pages.dev").split(",")]
 
 CORS(app, supports_credentials=True, origins=allowed_origins,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -30,7 +30,7 @@ def home():
 @app.route("/<path:path>", methods=["OPTIONS"])
 def handle_cors_preflight(path):
     """
-    ✅ Handle CORS preflight correctly and avoid 500 errors.
+    Fix: Handle OPTIONS preflight request properly.
     """
     origin = request.headers.get("Origin", "")
     if origin in allowed_origins:
@@ -39,16 +39,15 @@ def handle_cors_preflight(path):
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        return response, 204  # ✅ 204 No Content
+        return response, 200  # Return 200 OK instead of 204 No Content
 
     response = jsonify({"error": "CORS origin not allowed"})
-    response.headers["Access-Control-Allow-Origin"] = "*"
     return response, 403
 
 @app.after_request
 def apply_cors_headers(response):
     """
-    Ensure CORS headers are applied to all responses, including errors.
+    ✅ Ensures CORS headers are correctly set on ALL responses.
     """
     origin = request.headers.get("Origin", "")
     if origin in allowed_origins:
@@ -59,7 +58,7 @@ def apply_cors_headers(response):
 
     return response
 
-# ✅ Ensure Gunicorn can recognize the app
+# Ensure Gunicorn can recognize the app
 if __name__ != '__main__':
     with app.app_context():
         db.create_all()
