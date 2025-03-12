@@ -19,6 +19,7 @@ CORS(app, supports_credentials=True, origins=allowed_origins,
 
 migrate = Migrate(app, db)
 
+
 @app.route("/", methods=["GET", "POST"])
 def home():
     if request.method == "GET":
@@ -66,4 +67,5 @@ if __name__ != '__main__':
     monitoring_thread = threading.Thread(target=start_monitoring, args=(app,), daemon=True)
     monitoring_thread.start()
 
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

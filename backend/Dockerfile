@@ -28,4 +28,4 @@ EXPOSE 5000
 ENV FLASK_RUN_HOST=0.0.0.0
 
 # Start Gunicorn with error logging
-CMD flask db upgrade && gunicorn -w 4 -b 0.0.0.0:5000 main:app --log-level=debug
+CMD flask db upgrade && gunicorn -w 4 -b 0.0.0.0:${PORT:-5000} main:app --log-level=debug
