@@ -41,10 +41,12 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "supersecretkey")
 
-    CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://prototipo-70.pages.dev"]}},
-        supports_credentials=True,
-        allow_headers=["Content-Type", "Authorization"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+    allowed_origins = os.getenv("FRONTEND_URL", "https://prototipo-70.pages.dev").split(",")
+
+    CORS(app, resources={r"/*": {"origins": allowed_origins}},
+            supports_credentials=True,
+            allow_headers=["Content-Type", "Authorization"],
+            methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
     db.init_app(app)  # Bind SQLAlchemy to Flask app
     api.init_app(app)  # Initialize Flask-RESTx API
@@ -72,5 +74,8 @@ def create_app():
     @app.route("/status", methods=['GET'])
     def status():
         return jsonify({"message": "Server is running"}), 200
+
+    for rule in app.url_map.iter_rules():
+        print(f"{rule.endpoint}: {rule.rule}")
 
     return app
