@@ -7,18 +7,25 @@ from app import create_app, db
 from app.models import User, Website, Metric, Alert
 from app.monitor import start_monitoring
 
-#  Gunicorn expects a callable `app` instance
+# Create the Flask app
 app = create_app()
 
-#  Ensure allowed_origins is correctly formatted
-allowed_origins = [origin.strip() for origin in os.getenv("FRONTEND_URL", "http://localhost:3000,https://prototipo-70.pages.dev").split(",")]
+# Set up your allowed origins; adjust for your real Cloudflare domain if needed
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")
+]
 
-CORS(app, supports_credentials=True, origins=allowed_origins,
+CORS(
+    app,
+    supports_credentials=True,
+    origins=allowed_origins,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"])
+    allow_headers=["Content-Type", "Authorization"]
+)
 
+# Initialize Flask-Migrate
 migrate = Migrate(app, db)
-
 
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -31,7 +38,8 @@ def home():
 @app.route("/<path:path>", methods=["OPTIONS"])
 def handle_cors_preflight(path):
     """
-    Fix: Handle OPTIONS preflight request properly.
+    Manually handle OPTIONS preflight requests (if needed).
+    Flask-CORS typically does this automatically, but you have extra logic here.
     """
     origin = request.headers.get("Origin", "")
     if origin in allowed_origins:
@@ -40,7 +48,7 @@ def handle_cors_preflight(path):
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        return response, 200  # Return 200 OK instead of 204 No Content
+        return response, 200
 
     response = jsonify({"error": "CORS origin not allowed"})
     return response, 403
@@ -54,12 +62,19 @@ def apply_cors_headers(response):
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         response.headers["Access-Control-Allow-Credentials"] = "true"
-
     return response
 
-# Ensure Gunicorn can recognize the app
-if __name__ != '__main__':
+def initialize_app():
+    """
+    Common setup code that should run once on startup, both locally and in production.
+    """
     with app.app_context():
+        # If you're using migrations, you might prefer running 'flask db upgrade' here
+        # instead of 'db.create_all()'. For example:
+        #
+        # import subprocess
+        # subprocess.run(["flask", "db", "upgrade"])
+        #
         db.create_all()
         print("✅ Database created successfully!")
 
@@ -67,5 +82,17 @@ if __name__ != '__main__':
     monitoring_thread = threading.Thread(target=start_monitoring, args=(app,), daemon=True)
     monitoring_thread.start()
 
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+# ---------------------------------------------------------------------
+# Only run the built-in Flask server if we run 'python main.py' directly.
+# Gunicorn will just import 'app' and call it on its own, ignoring app.run().
+# ---------------------------------------------------------------------
+if __name__ == "__main__":
+    initialize_app()
+
+    port = int(os.environ.get("PORT", 5000))
+    # For local development only, run the Flask dev server:
+    app.run(host="0.0.0.0", port=port, debug=True)
+else:
+    # Production path (Gunicorn)
+    initialize_app()
+    # No app.run() here. Gunicorn will serve 'app' as defined above.
