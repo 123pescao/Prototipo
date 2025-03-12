@@ -97,7 +97,7 @@ async def check_all_websites(app):
 
 # Function to check alert conditions
 async def check_for_alert(website_id, alert_type, app):
-    from app.utils.email_utils import send_email_async
+    from app.utils.email_utils import send_email_via_cloudflare as send_email_async
     with app.app_context():
         website = db.session.get(Website, website_id)
         if not website:
