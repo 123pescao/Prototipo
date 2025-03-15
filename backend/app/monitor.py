@@ -152,6 +152,7 @@ async def check_for_alert(website_id, alert_type, app):
             Regards,
             **Watchly Monitoring**
             """
+            print(f"🚨 Sending email to {user.email}: {subject}")
             await send_email_async(user.email, subject, content)
 
         elif alert_type == "Website Up":
@@ -174,6 +175,7 @@ async def check_for_alert(website_id, alert_type, app):
                 Regards,
                 **Watchly Monitoring**
                 """
+                print(f"🚨 Sending email to {user.email}: {subject}")
                 await send_email_async(user.email, subject, content)
 
 def run_monitoring_task(app):
