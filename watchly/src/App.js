@@ -1,26 +1,8 @@
-// watchly/src/App.js
-
-import React, { useState, useEffect } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-  useNavigate,
-} from "react-router-dom";
-
-// --- COMPONENT IMPORTS ---
-// Make sure these exist and point to the correct paths in your project
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import LandingPage from "./components/LandingPage";
 import Login from "./components/Login";
-import Register from "./components/Register"; // from your 'bigger' version
 import WebsiteMonitorUI from "./components/WebsiteMonitorUI";
-import WebsiteList from "./components/Websites/WebsiteList";
-import AddWebsite from "./components/Websites/AddWebsite";
-import MetricList from "./components/Metrics/MetricList";
-import AlertList from "./components/Alerts/AlertList";
-import NotFound from "./components/Common/NotFound"; // or wherever you defined a 404
-
 import "./index.css";
 
 function App() {
@@ -28,109 +10,55 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // On initial load, check localStorage for a token
+  // Check if user is authenticated from localStorage
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
-    console.log("Checking token in localStorage:", savedToken);
-    setUser(!!savedToken); // user = true if token is non-empty
+    console.log("Checking token in localStorage:", savedToken);  // Debugging
+    setUser(!!savedToken);  // Set to true if token exists
     setIsLoading(false);
   }, []);
 
-  // Called when a login is successful (if you want to unify code between your Login.js and here)
+  // Handle login and set token
   const handleLogin = () => {
-    // For simple demo, we store a fake token
-    // If you already store a real token in Login.js, you can skip this
-    localStorage.setItem("token", "authenticated");
-    setUser(true);
-    navigate("/dashboard");
+    localStorage.setItem("token", "authenticated"); // Store token
+    setUser(true); // Update user state to authenticated
+    navigate("/dashboard"); // Redirect to dashboard after login
   };
 
-  // Called on logout to remove the token and redirect
+  // Handle logout and remove token
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(false);
-    navigate("/login");
+    localStorage.removeItem("token"); // Remove token
+    setUser(false); // Update user state to not authenticated
+    navigate("/login"); // Redirect to login page
   };
 
-  // While checking for a token, show a loading screen
+  // Show loading state while checking authentication
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen text-lg">
-        Loading...
-      </div>
-    );
+    return <div className="flex justify-center items-center h-screen text-lg">Loading...</div>;
   }
 
   return (
-    // If you already wrap <App /> with <BrowserRouter> in src/index.js,
-    // remove <Router> here. If not, keep it.
-    <Router>
-      <div className="App min-h-screen">
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login onLogin={handleLogin} />} />
-          <Route path="/register" element={<Register />} />
+    <div className="App min-h-screen">
+      <Routes>
+        {/* Landing page is always the first page */}
+        <Route path="/" element={<LandingPage />} />
 
-          {/* Protected route for dashboard */}
-          <Route
-            path="/dashboard"
-            element={
-              user ? (
-                <WebsiteMonitorUI onLogout={handleLogout} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
+        {/* Login page comes after the landing page */}
+        <Route path="/login" element={<Login onLogin={handleLogin} />} />
 
-          {/* Additional protected routes */}
-          <Route
-            path="/websites"
-            element={
-              user ? (
-                <WebsiteList onLogout={handleLogout} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/websites/add"
-            element={
-              user ? (
-                <AddWebsite onLogout={handleLogout} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/metrics"
-            element={
-              user ? (
-                <MetricList onLogout={handleLogout} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/alerts"
-            element={
-              user ? (
-                <AlertList onLogout={handleLogout} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-
-          {/* Catch-all for 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </div>
-    </Router>
+        {/* Dashboard route, accessible only if user is authenticated */}
+        <Route
+          path="/dashboard"
+          element={
+            user ? (
+              <WebsiteMonitorUI onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+      </Routes>
+    </div>
   );
 }
 
