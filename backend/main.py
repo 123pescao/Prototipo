@@ -1,11 +1,13 @@
 import os
 import threading
+import asyncio
 from flask import Flask, request, jsonify
 from flask_migrate import Migrate
 from flask_cors import CORS
 from app import create_app, db
 from app.models import User, Website, Metric, Alert
 from app.monitor import start_monitoring
+from app.utils.email_utils import send_email_via_sendgrid, send_email_via_cloudflare
 
 # Create the Flask app
 app = create_app()
@@ -63,6 +65,34 @@ def apply_cors_headers(response):
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
+
+@app.route("/send-email", methods=["POST"])
+def send_email_route():
+    """
+    API endpoint to send an email.
+    Expects a JSON payload with 'to_email', 'subject', and 'content'.
+    """
+    data = request.get_json()
+    
+    if not data or "to_email" not in data or "subject" not in data or "content" not in data:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    to_email = data["to_email"]
+    subject = data["subject"]
+    content = data["content"]
+
+    # Choose whether to send via Cloudflare or SendGrid
+    USE_CLOUDFLARE = True  # Change to False if you want direct SendGrid emails
+
+    if USE_CLOUDFLARE:
+        success = asyncio.run(send_email_via_cloudflare(to_email, subject, content))
+    else:
+        success = asyncio.run(send_email_via_sendgrid(to_email, subject, content))
+
+    if success:
+        return jsonify({"message": "Email sent successfully!"}), 200
+    else:
+        return jsonify({"error": "Failed to send email"}), 500
 
 def initialize_app():
     """
